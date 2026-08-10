@@ -1,0 +1,982 @@
+/* ==========================================================================
+   WORLDARTS — script.js
+   Gallery + Artwork Details + Pi Login + Pi Payment
+   ========================================================================== */
+
+(function () {
+  "use strict";
+
+  const API_URL = "https://YOUR-WORLDARTS-BACKEND.onrender.com";
+
+  let piUser = null;
+  let selectedArtwork = null;
+
+  /* ============================================================
+     TRANSLATIONS
+     ============================================================ */
+
+  const translations = {
+    fr: {
+      "nav.connect": "Se connecter avec Pi",
+      "hero.connect": "Se connecter avec Pi",
+      "hero.explore": "Explorer la galerie",
+      "payment.card.buy": "Acheter avec Pi",
+      "modal.login.title": "Connexion Pi",
+      "modal.login.action": "Continuer avec Pi",
+      "modal.payment.title": "Confirmer le paiement",
+      "modal.payment.action": "Payer avec Pi"
+    },
+
+    en: {
+      "nav.connect": "Connect with Pi",
+      "hero.connect": "Connect with Pi",
+      "hero.explore": "Explore Gallery",
+      "payment.card.buy": "Buy with Pi",
+      "modal.login.title": "Pi Login",
+      "modal.login.action": "Continue with Pi",
+      "modal.payment.title": "Confirm Payment",
+      "modal.payment.action": "Pay with Pi"
+    },
+
+    rn: {
+      "nav.connect": "Injira na Pi",
+      "hero.connect": "Injira na Pi",
+      "hero.explore": "Raba ibihangano",
+      "payment.card.buy": "Gura na Pi",
+      "modal.login.title": "Kwinjira na Pi",
+      "modal.login.action": "Komeza na Pi",
+      "modal.payment.title": "Emeza ukwishura",
+      "modal.payment.action": "Ishura na Pi"
+    },
+
+    sw: {
+      "nav.connect": "Ungana na Pi",
+      "hero.connect": "Ungana na Pi",
+      "hero.explore": "Chunguza sanaa",
+      "payment.card.buy": "Nunua kwa Pi",
+      "modal.login.title": "Kuingia na Pi",
+      "modal.login.action": "Endelea na Pi",
+      "modal.payment.title": "Thibitisha malipo",
+      "modal.payment.action": "Lipa kwa Pi"
+    },
+
+    ar: {
+      "nav.connect": "الاتصال عبر Pi",
+      "hero.connect": "الاتصال عبر Pi",
+      "hero.explore": "استكشف المعرض",
+      "payment.card.buy": "الشراء عبر Pi",
+      "modal.login.title": "تسجيل الدخول عبر Pi",
+      "modal.login.action": "المتابعة عبر Pi",
+      "modal.payment.title": "تأكيد الدفع",
+      "modal.payment.action": "الدفع عبر Pi"
+    },
+
+    zh: {
+      "nav.connect": "使用 Pi 连接",
+      "hero.connect": "使用 Pi 连接",
+      "hero.explore": "浏览画廊",
+      "payment.card.buy": "使用 Pi 购买",
+      "modal.login.title": "Pi 登录",
+      "modal.login.action": "使用 Pi 继续",
+      "modal.payment.title": "确认付款",
+      "modal.payment.action": "使用 Pi 付款"
+    }
+  };
+
+  /* ============================================================
+     LANGUAGE
+     ============================================================ */
+
+  function applyLanguage(lang) {
+    const dict = translations[lang] || translations.fr;
+
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const key = el.getAttribute("data-i18n");
+      if (dict[key]) {
+        el.innerHTML = dict[key];
+      }
+    });
+
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+
+    localStorage.setItem("worldarts_lang", lang);
+  }
+
+  /* ============================================================
+     THEME
+     ============================================================ */
+
+  function applyTheme(theme) {
+    document.body.setAttribute("data-theme", theme);
+    localStorage.setItem("worldarts_theme", theme);
+  }
+
+  /* ============================================================
+     PI SDK
+     ============================================================ */
+
+  function initPi() {
+    if (typeof Pi === "undefined") {
+      console.warn("Pi SDK not available.");
+      return;
+    }
+
+    try {
+      Pi.init({
+        version: "2.0",
+        sandbox: true
+      });
+
+      console.log("Pi SDK initialized.");
+    } catch (error) {
+      console.error("Pi initialization error:", error);
+    }
+  }
+
+  function onIncompletePaymentFound(payment) {
+    console.log("Incomplete payment:", payment);
+  }
+
+  async function connectWithPi() {
+
+    if (typeof Pi === "undefined") {
+      alert("Ouvrez WorldArts dans le Pi Browser.");
+      return;
+    }
+
+    try {
+
+      const scopes = ["username", "payments"];
+
+      const auth = await Pi.authenticate(
+        scopes,
+        onIncompletePaymentFound
+      );
+
+      piUser = auth.user;
+
+      const button = document.getElementById("piConnectBtn");
+
+      if (button) {
+        button.textContent = "@" + piUser.username;
+      }
+
+      closeModal("loginModal");
+
+      alert(
+        "Bienvenue @" +
+        piUser.username +
+        " sur WorldArts !"
+      );
+
+    } catch (error) {
+
+      console.error("Pi authentication error:", error);
+
+      alert(
+        "Connexion Pi impossible. Vérifiez que vous utilisez Pi Browser."
+      );
+    }
+  }
+
+  /* ============================================================
+     ARTWORK DETAILS
+     ============================================================ */
+
+  function openArtworkDetails(artwork) {
+
+    selectedArtwork = artwork;
+
+    const modal = document.getElementById("artworkModal");
+
+    if (!modal) {
+      createArtworkModal();
+    }
+
+    document.getElementById("artworkImage").src =
+      artwork.image || "";
+
+    document.getElementById("artworkTitle").textContent =
+      artwork.title || "Artwork";
+
+    document.getElementById("artworkArtist").textContent =
+      artwork.artist || "";
+
+    document.getElementById("artworkDescription").textContent =
+      artwork.description || "";
+
+    document.getElementById("artworkPrice").textContent =
+      artwork.price + " π";
+
+    openModal("artworkModal");
+  }
+
+  /* ============================================================
+     LOAD ARTWORKS
+     ============================================================ */
+
+  async function loadArtworks() {
+
+    try {
+
+      let artworks = [];
+
+      if (
+        typeof window.WORLDARTS_ARTWORKS !== "undefined"
+      ) {
+
+        artworks = window.WORLDARTS_ARTWORKS;
+
+      } else {
+
+        const response = await fetch(
+          API_URL + "/api/artworks"
+        );
+
+        if (!response.ok) {
+          throw new Error("Artwork API error");
+        }
+
+        artworks = await response.json();
+      }
+
+      renderArtworks(artworks);
+
+    } catch (error) {
+
+      console.error("Loading artworks failed:", error);
+
+      const gallery =
+        document.getElementById("galleryGrid");
+
+      if (gallery) {
+
+        gallery.innerHTML = `
+          <div class="artwork-error">
+            <p>Impossible de charger les œuvres.</p>
+            <button onclick="location.reload()">
+              Réessayer
+            </button>
+          </div>
+        `;
+      }
+    }
+  }
+
+  /* ============================================================
+     RENDER ARTWORKS
+     ============================================================ */
+
+  function renderArtworks(artworks) {
+
+    const gallery =
+      document.getElementById("galleryGrid");
+
+    if (!gallery) {
+      console.warn(
+        "galleryGrid not found in index.html"
+      );
+      return;
+    }
+
+    gallery.innerHTML = "";
+
+    artworks.forEach((artwork) => {
+
+      const card =
+        document.createElement("article");
+
+      card.className = "artwork-card";
+
+      card.innerHTML = `
+        <div class="artwork-image-wrap">
+          <img
+            src="${escapeHTML(artwork.image || "")}"
+            alt="${escapeHTML(artwork.title || "Artwork")}"
+            class="artwork-image"
+            loading="lazy"
+          >
+        </div>
+
+        <div class="artwork-info">
+
+          <h3>
+            ${escapeHTML(artwork.title || "Artwork")}
+          </h3>
+
+          <p>
+            ${escapeHTML(artwork.artist || "")}
+          </p>
+
+          <strong>
+            ${Number(artwork.price).toFixed(2)} π
+          </strong>
+
+          <button
+            class="artwork-buy-btn"
+            type="button"
+          >
+            Acheter avec Pi
+          </button>
+
+        </div>
+      `;
+
+      card.addEventListener(
+        "click",
+        function () {
+          openArtworkDetails(artwork);
+        }
+      );
+
+      const buyButton =
+        card.querySelector(".artwork-buy-btn");
+
+      buyButton.addEventListener(
+        "click",
+        function (event) {
+
+          event.stopPropagation();
+
+          openArtworkDetails(artwork);
+        }
+      );
+
+      gallery.appendChild(card);
+    });
+  }
+
+  /* ============================================================
+     BUY SELECTED ARTWORK
+     ============================================================ */
+
+  async function buySelectedArtwork() {
+
+    if (!selectedArtwork) {
+      alert("Aucune œuvre sélectionnée.");
+      return;
+    }
+
+    if (!piUser) {
+
+      closeModal("artworkModal");
+
+      openModal("loginModal");
+
+      return;
+    }
+
+    const amount =
+      Number(selectedArtwork.price);
+
+    if (!amount || amount <= 0) {
+      alert("Prix de l'œuvre invalide.");
+      return;
+    }
+
+    closeModal("artworkModal");
+
+    openModal("paymentModal");
+
+    document.getElementById("paymentArtworkTitle").textContent =
+      selectedArtwork.title;
+
+    document.getElementById("paymentArtworkPrice").textContent =
+      amount + " π";
+
+    const confirmButton =
+      document.getElementById("modalPayBtn");
+
+    confirmButton.onclick = function () {
+
+      createPiPayment(
+        amount,
+        selectedArtwork
+      );
+    };
+  }
+
+  /* ============================================================
+     CREATE PI PAYMENT
+     ============================================================ */
+
+  function createPiPayment(
+    amount,
+    artwork
+  ) {
+
+    if (typeof Pi === "undefined") {
+
+      alert(
+        "Le paiement Pi nécessite Pi Browser."
+      );
+
+      return;
+    }
+
+    if (!piUser) {
+
+      alert(
+        "Connectez-vous d'abord avec Pi."
+      );
+
+      closeModal("paymentModal");
+      openModal("loginModal");
+
+      return;
+    }
+
+    const paymentData = {
+
+      amount: amount,
+
+      memo:
+        "WorldArts - Achat: " +
+        artwork.title,
+
+      metadata: {
+
+        app: "WorldArts",
+
+        artworkId: artwork.id,
+
+        artworkTitle: artwork.title,
+
+        buyer:
+          piUser.username
+
+      }
+    };
+
+    Pi.createPayment(
+
+      paymentData,
+
+      {
+
+        onReadyForServerApproval:
+          async function (paymentId) {
+
+            console.log(
+              "Payment approval:",
+              paymentId
+            );
+
+            try {
+
+              const response =
+                await fetch(
+                  API_URL +
+                  "/api/payments/approve",
+                  {
+                    method: "POST",
+
+                    headers: {
+                      "Content-Type":
+                        "application/json"
+                    },
+
+                    body: JSON.stringify({
+                      paymentId: paymentId
+                    })
+                  }
+                );
+
+              if (!response.ok) {
+                throw new Error(
+                  "Server approval failed"
+                );
+              }
+
+              console.log(
+                "Payment approved."
+              );
+
+            } catch (error) {
+
+              console.error(
+                error
+              );
+
+              alert(
+                "Le serveur n'a pas pu approuver le paiement."
+              );
+            }
+          },
+
+        onReadyForServerCompletion:
+          async function (
+            paymentId,
+            txid
+          ) {
+
+            console.log(
+              "Payment completion:",
+              paymentId,
+              txid
+            );
+
+            try {
+
+              const response =
+                await fetch(
+                  API_URL +
+                  "/api/payments/complete",
+                  {
+                    method: "POST",
+
+                    headers: {
+                      "Content-Type":
+                        "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                      paymentId:
+                        paymentId,
+
+                      txid:
+                        txid,
+
+                      artworkId:
+                        artwork.id,
+
+                      buyer:
+                        piUser.username
+
+                    })
+                  }
+                );
+
+              if (!response.ok) {
+                throw new Error(
+                  "Completion failed"
+                );
+              }
+
+              closeModal("paymentModal");
+
+              showPaymentSuccess(
+                artwork
+              );
+
+            } catch (error) {
+
+              console.error(
+                error
+              );
+
+              alert(
+                "Paiement envoyé, mais confirmation serveur impossible."
+              );
+            }
+          },
+
+        onCancel:
+          function (paymentId) {
+
+            console.log(
+              "Payment cancelled:",
+              paymentId
+            );
+
+            alert(
+              "Paiement annulé."
+            );
+          },
+
+        onError:
+          function (
+            error,
+            payment
+          ) {
+
+            console.error(
+              "Pi payment error:",
+              error,
+              payment
+            );
+
+            alert(
+              "Une erreur est survenue pendant le paiement Pi."
+            );
+          }
+      }
+    );
+  }
+
+  /* ============================================================
+     PAYMENT SUCCESS
+     ============================================================ */
+
+  function showPaymentSuccess(artwork) {
+
+    const title =
+      artwork.title || "Artwork";
+
+    alert(
+      "✅ Paiement confirmé !\n\n" +
+      title +
+      "\n\nMerci pour votre achat sur WorldArts."
+    );
+  }
+
+  /* ============================================================
+     MODALS
+     ============================================================ */
+
+  function openModal(id) {
+
+    const modal =
+      document.getElementById(id);
+
+    if (modal) {
+      modal.classList.add("open");
+    }
+  }
+
+  function closeModal(id) {
+
+    const modal =
+      document.getElementById(id);
+
+    if (modal) {
+      modal.classList.remove("open");
+    }
+  }
+
+  /* ============================================================
+     CREATE ARTWORK MODAL
+     ============================================================ */
+
+  function createArtworkModal() {
+
+    if (document.getElementById("artworkModal")) {
+      return;
+    }
+
+    const modal =
+      document.createElement("div");
+
+    modal.id = "artworkModal";
+
+    modal.className =
+      "modal-overlay";
+
+    modal.innerHTML = `
+
+      <div class="modal">
+
+        <button
+          class="modal-close"
+          data-close="artworkModal"
+        >
+          ×
+        </button>
+
+        <img
+          id="artworkImage"
+          src=""
+          alt="Artwork"
+          style="
+            width:100%;
+            max-height:350px;
+            object-fit:cover;
+            border-radius:12px;
+          "
+        >
+
+        <h2 id="artworkTitle"></h2>
+
+        <p id="artworkArtist"></p>
+
+        <p id="artworkDescription"></p>
+
+        <h3 id="artworkPrice"></h3>
+
+        <button
+          id="artworkBuyButton"
+          type="button"
+        >
+          Acheter avec Pi
+        </button>
+
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal
+      .querySelector("[data-close]")
+      .addEventListener(
+        "click",
+        function () {
+          closeModal("artworkModal");
+        }
+      );
+
+    document
+      .getElementById("artworkBuyButton")
+      .addEventListener(
+        "click",
+        buySelectedArtwork
+      );
+  }
+
+  /* ============================================================
+     ESCAPE HTML
+     ============================================================ */
+
+  function escapeHTML(value) {
+
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  /* ============================================================
+     DOM READY
+     ============================================================ */
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+      /* Theme */
+
+      const savedTheme =
+        localStorage.getItem(
+          "worldarts_theme"
+        ) || "light";
+
+      applyTheme(savedTheme);
+
+      const themeToggle =
+        document.getElementById(
+          "themeToggle"
+        );
+
+      if (themeToggle) {
+
+        themeToggle.addEventListener(
+          "click",
+          function () {
+
+            const current =
+              document.body.getAttribute(
+                "data-theme"
+              );
+
+            applyTheme(
+              current === "dark"
+                ? "light"
+                : "dark"
+            );
+          }
+        );
+      }
+
+      /* Language */
+
+      const savedLang =
+        localStorage.getItem(
+          "worldarts_lang"
+        ) || "fr";
+
+      const langSelect =
+        document.getElementById(
+          "langSelect"
+        );
+
+      if (langSelect) {
+
+        langSelect.value =
+          savedLang;
+
+        applyLanguage(
+          savedLang
+        );
+
+        langSelect.addEventListener(
+          "change",
+          function (event) {
+
+            applyLanguage(
+              event.target.value
+            );
+          }
+        );
+      }
+
+      /* Mobile menu */
+
+      const menuToggle =
+        document.getElementById(
+          "menuToggle"
+        );
+
+      const navLinks =
+        document.getElementById(
+          "navLinks"
+        );
+
+      if (
+        menuToggle &&
+        navLinks
+      ) {
+
+        menuToggle.addEventListener(
+          "click",
+          function () {
+
+            navLinks.classList.toggle(
+              "open"
+            );
+          }
+        );
+      }
+
+      /* Pi */
+
+      initPi();
+
+      const piConnectBtn =
+        document.getElementById(
+          "piConnectBtn"
+        );
+
+      if (piConnectBtn) {
+
+        piConnectBtn.addEventListener(
+          "click",
+          function () {
+            openModal(
+              "loginModal"
+            );
+          }
+        );
+      }
+
+      const heroConnectBtn =
+        document.getElementById(
+          "heroConnectBtn"
+        );
+
+      if (heroConnectBtn) {
+
+        heroConnectBtn.addEventListener(
+          "click",
+          function () {
+            openModal(
+              "loginModal"
+            );
+          }
+        );
+      }
+
+      const modalConnectBtn =
+        document.getElementById(
+          "modalConnectBtn"
+        );
+
+      if (modalConnectBtn) {
+
+        modalConnectBtn.addEventListener(
+          "click",
+          connectWithPi
+        );
+      }
+
+      /* Existing payment button */
+
+      const payBtn =
+        document.getElementById(
+          "payBtn"
+        );
+
+      if (payBtn) {
+
+        payBtn.addEventListener(
+          "click",
+          function () {
+
+            if (
+              window.WORLDARTS_ARTWORKS &&
+              window.WORLDARTS_ARTWORKS.length
+            ) {
+
+              openArtworkDetails(
+                window.WORLDARTS_ARTWORKS[0]
+              );
+
+            } else {
+
+              openModal(
+                "paymentModal"
+              );
+            }
+          }
+        );
+      }
+
+      /* Close modals */
+
+      document
+        .querySelectorAll(
+          "[data-close]"
+        )
+        .forEach(
+          function (button) {
+
+            button.addEventListener(
+              "click",
+              function () {
+
+                closeModal(
+                  button.getAttribute(
+                    "data-close"
+                  )
+                );
+              }
+            );
+          }
+        );
+
+      document
+        .querySelectorAll(
+          ".modal-overlay"
+        )
+        .forEach(
+          function (overlay) {
+
+            overlay.addEventListener(
+              "click",
+              function (event) {
+
+                if (
+                  event.target === overlay
+                ) {
+
+                  overlay.classList.remove(
+                    "open"
+                  );
+                }
+              }
+            );
+          }
+        );
+
+      /* Load artworks */
+
+      loadArtworks();
+
+    }
+  );
+
+})();
+Important: aho handitse:
+const API_URL = "https://YOUR-WORLDARTS-BACKEND.onrender.com";
