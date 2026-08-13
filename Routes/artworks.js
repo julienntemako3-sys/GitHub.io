@@ -1,31 +1,35 @@
 // routes/artworks.js
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { artworks, artists, uuidv4 } = require('../config/store');
+const { artworks, uuidv4 } = require('../config/store');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// GET /api/artworks
-// Liste publique des œuvres
+/**
+ * GET /api/artworks
+ * Liste publique des œuvres
+ */
 router.get('/', optionalAuth, (req, res) => {
   const { artistId, minPi, maxPi, q } = req.query;
 
-  let results = [...artworks];
+  let results = Array.from(artworks.values());
 
   if (artistId) {
-    results = results.filter((artwork) => artwork.artistId === artistId);
+    results = results.filter(
+      (artwork) => artwork.artistId === artistId
+    );
   }
 
   if (minPi) {
     results = results.filter(
-      (artwork) => Number(artwork.pricePi) >= Number(minPi)
+      (artwork) => Number(artwork.price?.pi || 0) >= Number(minPi)
     );
   }
 
   if (maxPi) {
     results = results.filter(
-      (artwork) => Number(artwork.pricePi) <= Number(maxPi)
+      (artwork) => Number(artwork.price?.pi || 0) <= Number(maxPi)
     );
   }
 
@@ -47,10 +51,12 @@ router.get('/', optionalAuth, (req, res) => {
   });
 });
 
-// GET /api/artworks/:id
-// Voir une œuvre
+/**
+ * GET /api/artworks/:id
+ * Voir une œuvre
+ */
 router.get('/:id', (req, res) => {
-  const artwork = artworks.find((item) => item.id === req.params.id);
+  const artwork = artworks.get(req.params.id);
 
   if (!artwork) {
     return res.status(404).json({
@@ -65,16 +71,28 @@ router.get('/:id', (req, res) => {
   });
 });
 
-// POST /api/artworks
-// Ajouter une œuvre
+/**
+ * POST /api/artworks
+ * Ajouter une œuvre
+ */
 router.post(
   '/',
   requireAuth,
   [
-    body('title').trim().notEmpty().withMessage('Title is required'),
+    body('title')
+      .trim()
+      .notEmpty()
+      .withMessage('Title is required'),
+
     body('pricePi')
+      .optional()
       .isFloat({ min: 0 })
-      .withMessage('pricePi must be a positive number')
+      .withMessage('pricePi must be a positive number'),
+
+    body('priceWart')
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage('priceWart must be a positive number')
   ],
   (req, res) => {
     const errors = validationResult(req);
@@ -92,12 +110,19 @@ router.post(
       title: req.body.title,
       description: req.body.description || '',
       imageUrl: req.body.imageUrl || '',
-      pricePi: Number(req.body.pricePi),
-      priceWart: Number(req.body.priceWart || 0),
+
+      price: {
+        pi: Number(req.body.pricePi || 0),
+        wart: Number(req.body.priceWart || 0)
+      },
+
+      views: 0,
+      likes: 0,
+      status: 'published',
       createdAt: new Date().toISOString()
     };
 
-    artworks.push(artwork);
+    artworks.set(artwork.id, artwork);
 
     res.status(201).json({
       success: true,
