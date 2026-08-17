@@ -6,7 +6,7 @@
 (function () {
   "use strict";
 
-  const API_URL = "https://YOUR-WORLDARTS-BACKEND.onrender.com";
+  const API_URL = "https://worldarts-backend.onrender.com";
 
   let piUser = null;
   let selectedArtwork = null;
