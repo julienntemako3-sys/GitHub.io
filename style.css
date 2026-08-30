@@ -4,7 +4,7 @@
    Compatible avec index.html fourni
    Compatible avec script.js / Pi SDK
    ========================================================== */
-import url('https://fo@nts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap');
 
 :root {
   --bg: #f3efe4;
