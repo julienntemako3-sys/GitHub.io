@@ -1,172 +1,359 @@
-
 // routes/artworks.js
+//
+// WorldArts — Artwork API
+// Compatible avec:
+// - config/store.js
+// - middleware/auth.js
+// - server.js
+// - frontend/script.js
+//
+// Stockage actuel : mémoire (Map)
+// Plus tard : Supabase / PostgreSQL
+
 const express = require('express');
-const { body, validationResult } = require('express-validator');
-const { artworks, artists, uuidv4 } = require('../config/store');
-const { requireAuth, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-/**
- * GET /api/artworks
- * Liste publique des œuvres
- * Filtres:
- * ?artistId=
- * ?minPi=
- * ?maxPi=
- * ?q=
- */
+const {
+  artworks,
+  uuidv4
+} = require('../config/store');
+
+const {
+  requireAuth,
+  optionalAuth
+} = require('../middleware/auth');
+
+
+// ==========================================================
+// HELPERS
+// ==========================================================
+
+function normalizeArtwork(artwork) {
+
+  if (!artwork) {
+    return null;
+  }
+
+  const priceObject =
+    artwork.price &&
+    typeof artwork.price === 'object'
+      ? artwork.price
+      : {
+          pi: Number(artwork.price || 0),
+          wart: 0
+        };
+
+  const piPrice = Number(priceObject.pi || 0);
+  const wartPrice = Number(priceObject.wart || 0);
+
+  let price = '';
+  let currency = '';
+
+  if (piPrice > 0) {
+    price = piPrice;
+    currency = 'Pi';
+  } else if (wartPrice > 0) {
+    price = wartPrice;
+    currency = 'WART';
+  }
+
+  return {
+    id: artwork.id,
+    title: artwork.title || '',
+    description: artwork.description || '',
+    artistId: artwork.artistId || '',
+    artist: artwork.artist || artwork.artistName || '',
+    artistName: artwork.artistName || artwork.artist || '',
+    price,
+    currency,
+    prices: {
+      pi: piPrice,
+      wart: wartPrice
+    },
+    imageUrl: artwork.imageUrl || '',
+    views: Number(artwork.views || 0),
+    likes: Number(artwork.likes || 0),
+    status: artwork.status || 'published',
+    createdAt: artwork.createdAt || null
+  };
+}
+
+
+// ==========================================================
+// GET /api/artworks
+// Liste des œuvres publiées
+// ==========================================================
+
 router.get('/', optionalAuth, (req, res) => {
-  let list = Array.from(artworks.values());
 
-  const { artistId, minPi, maxPi, q } = req.query;
+  const list = [];
 
-  if (artistId) {
-    list = list.filter(a => a.artistId === artistId);
-  }
+  for (const artwork of artworks.values()) {
 
-  if (minPi) {
-    list = list.filter(a => a.price.pi >= Number(minPi));
-  }
+    if (
+      artwork.status &&
+      artwork.status !== 'published'
+    ) {
+      continue;
+    }
 
-  if (maxPi) {
-    list = list.filter(a => a.price.pi <= Number(maxPi));
-  }
-
-  if (q) {
-    const query = q.toLowerCase();
-
-    list = list.filter(a =>
-      (a.title || '').toLowerCase().includes(query) ||
-      (a.description || '').toLowerCase().includes(query)
+    list.push(
+      normalizeArtwork(artwork)
     );
   }
 
-  res.json({ artworks: list });
+  // Plus récent en premier
+  list.sort(
+    (a, b) =>
+      new Date(b.createdAt || 0) -
+      new Date(a.createdAt || 0)
+  );
+
+  res.json({
+    success: true,
+    artworks: list,
+    count: list.length
+  });
+
 });
 
 
-/**
- * GET /api/artworks/:id
- */
-router.get('/:id', (req, res) => {
-  const artwork = artworks.get(req.params.id);
+// ==========================================================
+// GET /api/artworks/:id
+// Une œuvre
+// ==========================================================
+
+router.get('/:id', optionalAuth, (req, res) => {
+
+  const artwork =
+    artworks.get(req.params.id);
 
   if (!artwork) {
+
     return res.status(404).json({
+      success: false,
       error: 'Œuvre introuvable.'
     });
+
   }
 
-  res.json({ artwork });
+  // Une œuvre non publiée n'est visible que par son propriétaire
+  if (
+    artwork.status !== 'published' &&
+    (!req.user ||
+      artwork.artistId !== req.user.id)
+  ) {
+
+    return res.status(404).json({
+      success: false,
+      error: 'Œuvre introuvable.'
+    });
+
+  }
+
+  // Compteur de vues
+  artwork.views =
+    Number(artwork.views || 0) + 1;
+
+  artworks.set(
+    artwork.id,
+    artwork
+  );
+
+  res.json({
+    success: true,
+    artwork: normalizeArtwork(artwork)
+  });
+
 });
 
 
-/**
- * POST /api/artworks
- * Création d'une œuvre
- */
-router.post(
-  '/',
-  requireAuth,
-  [
-    body('title').isString().notEmpty(),
-    body('description').isString().notEmpty(),
-    body('artistId').isString().notEmpty(),
-    body('price.pi').isFloat({ min: 0.001 }),
-    body('price.wart').isFloat({ min: 0 })
-  ],
-  (req, res) => {
+// ==========================================================
+// POST /api/artworks
+// Créer une œuvre
+// ==========================================================
 
-    const errors = validationResult(req);
+router.post('/', requireAuth, (req, res) => {
 
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        error:'Champs invalides.',
-        details: errors.array()
-      });
-    }
+  const {
+    title,
+    description,
+    price,
+    currency,
+    imageUrl,
+    status
+  } = req.body || {};
 
 
-    const {
-      title,
-      description,
-      artistId,
-      price,
-      imageUrl
-    } = req.body;
+  if (!title || !String(title).trim()) {
 
-
-    if (!artists.get(artistId)) {
-      return res.status(400).json({
-        error:'Artiste introuvable.'
-      });
-    }
-
-
-    if (req.user.id !== artistId) {
-      return res.status(403).json({
-        error:"Vous ne pouvez pas publier au nom d'un autre artiste."
-      });
-    }
-
-
-    const id = uuidv4();
-
-
-    const artwork = {
-      id,
-      title,
-      description,
-      artistId,
-
-      price:{
-        pi:Number(price.pi),
-        wart:Number(price.wart)
-      },
-
-      imageUrl:imageUrl || '',
-
-      views:0,
-      likes:0,
-
-      status:'published',
-
-      createdAt:new Date().toISOString()
-    };
-
-
-    artworks.set(id, artwork);
-
-
-    res.status(201).json({
-      artwork
+    return res.status(400).json({
+      success: false,
+      error: 'Le titre de l’œuvre est requis.'
     });
+
   }
-);
 
 
+  // --------------------------------------------------------
+  // Prix
+  // --------------------------------------------------------
 
-/**
- * PUT /api/artworks/:id
- * Modifier une œuvre
- */
-router.put('/:id', requireAuth, (req,res)=>{
+  let pi = 0;
+  let wart = 0;
 
-  const artwork = artworks.get(req.params.id);
+  if (
+    price &&
+    typeof price === 'object'
+  ) {
+
+    pi = Number(price.pi || 0);
+    wart = Number(price.wart || 0);
+
+  } else {
+
+    const amount =
+      Number(price || 0);
+
+    const selectedCurrency =
+      String(currency || 'Pi')
+        .trim()
+        .toUpperCase();
+
+    if (selectedCurrency === 'WART') {
+      wart = amount;
+    } else {
+      pi = amount;
+    }
+
+  }
 
 
-  if(!artwork){
+  if (
+    !Number.isFinite(pi) ||
+    !Number.isFinite(wart) ||
+    pi < 0 ||
+    wart < 0
+  ) {
+
+    return res.status(400).json({
+      success: false,
+      error: 'Prix invalide.'
+    });
+
+  }
+
+
+  if (pi === 0 && wart === 0) {
+
+    return res.status(400).json({
+      success: false,
+      error: 'Le prix doit être supérieur à zéro.'
+    });
+
+  }
+
+
+  // --------------------------------------------------------
+  // Une œuvre doit utiliser Pi OU WART
+  // --------------------------------------------------------
+
+  if (pi > 0 && wart > 0) {
+
+    return res.status(400).json({
+      success: false,
+      error: 'Une œuvre doit avoir un prix en Pi ou en WART.'
+    });
+
+  }
+
+
+  const artworkId =
+    uuidv4();
+
+
+  const artwork = {
+
+    id: artworkId,
+
+    title:
+      String(title).trim(),
+
+    description:
+      String(description || '').trim(),
+
+    artistId:
+      req.user.id,
+
+    price: {
+      pi,
+      wart
+    },
+
+    imageUrl:
+      String(imageUrl || '').trim(),
+
+    views: 0,
+
+    likes: 0,
+
+    status:
+      status === 'draft'
+        ? 'draft'
+        : 'published',
+
+    createdAt:
+      new Date().toISOString()
+
+  };
+
+
+  artworks.set(
+    artworkId,
+    artwork
+  );
+
+
+  res.status(201).json({
+    success: true,
+    artwork: normalizeArtwork(artwork)
+  });
+
+});
+
+
+// ==========================================================
+// PUT /api/artworks/:id
+// Modifier une œuvre
+// ==========================================================
+
+router.put('/:id', requireAuth, (req, res) => {
+
+  const artwork =
+    artworks.get(req.params.id);
+
+
+  if (!artwork) {
+
     return res.status(404).json({
-      error:'Œuvre introuvable.'
+      success: false,
+      error: 'Œuvre introuvable.'
     });
+
   }
 
 
-  if(artwork.artistId !== req.user.id){
+  if (
+    artwork.artistId !== req.user.id
+  ) {
+
     return res.status(403).json({
-      error:'Action non autorisée.'
+      success: false,
+      error:
+        'Vous ne pouvez pas modifier cette œuvre.'
     });
+
   }
 
 
@@ -174,26 +361,174 @@ router.put('/:id', requireAuth, (req,res)=>{
     title,
     description,
     price,
-    imageUrl
-  } = req.body;
+    currency,
+    imageUrl,
+    status
+  } = req.body || {};
 
 
-  if(title !== undefined)
-    artwork.title = title;
+  if (
+    title !== undefined
+  ) {
 
+    const cleanTitle =
+      String(title).trim();
 
-  if(description !== undefined)
-    artwork.description = description;
+    if (!cleanTitle) {
 
+      return res.status(400).json({
+        success: false,
+        error: 'Le titre ne peut pas être vide.'
+      });
 
-  if(price){
-    artwork.price.pi = Number(price.pi ?? artwork.price.pi);
-    artwork.price.wart = Number(price.wart ?? artwork.price.wart);
+    }
+
+    artwork.title =
+      cleanTitle;
+
   }
 
 
-  if(imageUrl !== undefined)
-    artwork.imageUrl = imageUrl;
+  if (
+    description !== undefined
+  ) {
+
+    artwork.description =
+      String(description).trim();
+
+  }
+
+
+  if (
+    imageUrl !== undefined
+  ) {
+
+    artwork.imageUrl =
+      String(imageUrl).trim();
+
+  }
+
+
+  if (
+    status !== undefined
+  ) {
+
+    if (
+      !['draft', 'published'].includes(
+        status
+      )
+    ) {
+
+      return res.status(400).json({
+        success: false,
+        error: 'Statut invalide.'
+      });
+
+    }
+
+    artwork.status =
+      status;
+
+  }
+
+
+  // --------------------------------------------------------
+  // Mise à jour du prix
+  // --------------------------------------------------------
+
+  if (
+    price !== undefined ||
+    currency !== undefined
+  ) {
+
+    let pi = 0;
+    let wart = 0;
+
+
+    if (
+      price &&
+      typeof price === 'object'
+    ) {
+
+      pi =
+        Number(price.pi || 0);
+
+      wart =
+        Number(price.wart || 0);
+
+    } else {
+
+      const amount =
+        Number(price || 0);
+
+      const selectedCurrency =
+        String(currency || 'Pi')
+          .trim()
+          .toUpperCase();
+
+      if (
+        selectedCurrency === 'WART'
+      ) {
+
+        wart = amount;
+
+      } else {
+
+        pi = amount;
+
+      }
+
+    }
+
+
+    if (
+      !Number.isFinite(pi) ||
+      !Number.isFinite(wart) ||
+      pi < 0 ||
+      wart < 0
+    ) {
+
+      return res.status(400).json({
+        success: false,
+        error: 'Prix invalide.'
+      });
+
+    }
+
+
+    if (
+      pi === 0 &&
+      wart === 0
+    ) {
+
+      return res.status(400).json({
+        success: false,
+        error: 'Le prix doit être supérieur à zéro.'
+      });
+
+    }
+
+
+    if (
+      pi > 0 &&
+      wart > 0
+    ) {
+
+      return res.status(400).json({
+        success: false,
+        error:
+          'Une œuvre doit avoir un prix en Pi ou en WART.'
+      });
+
+    }
+
+
+    artwork.price = {
+      pi,
+      wart
+    };
+
+  }
 
 
   artworks.set(
@@ -203,40 +538,56 @@ router.put('/:id', requireAuth, (req,res)=>{
 
 
   res.json({
-    artwork
+    success: true,
+    artwork:
+      normalizeArtwork(artwork)
   });
 
 });
 
 
+// ==========================================================
+// DELETE /api/artworks/:id
+// Supprimer une œuvre
+// ==========================================================
 
-/**
- * DELETE /api/artworks/:id
- */
-router.delete('/:id', requireAuth, (req,res)=>{
+router.delete('/:id', requireAuth, (req, res) => {
 
-  const artwork = artworks.get(req.params.id);
+  const artwork =
+    artworks.get(req.params.id);
 
 
-  if(!artwork){
+  if (!artwork) {
+
     return res.status(404).json({
-      error:'Œuvre introuvable.'
+      success: false,
+      error: 'Œuvre introuvable.'
     });
+
   }
 
 
-  if(artwork.artistId !== req.user.id){
+  if (
+    artwork.artistId !== req.user.id
+  ) {
+
     return res.status(403).json({
-      error:'Vous ne pouvez pas supprimer cette œuvre.'
+      success: false,
+      error:
+        'Vous ne pouvez pas supprimer cette œuvre.'
     });
+
   }
 
 
-  artworks.delete(req.params.id);
+  artworks.delete(
+    req.params.id
+  );
 
 
   res.json({
-    success:true
+    success: true,
+    message: 'Œuvre supprimée.'
   });
 
 });
