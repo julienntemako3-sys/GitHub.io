@@ -1,301 +1,961 @@
 <!DOCTYPE html>
 <html lang="fr" data-theme="light">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WorldArts — Le marché mondial de l'art</title>
-<meta name="description" content="WorldArts est le marché mondial de l'art : découvrez, achetez et vendez des œuvres, de la musique et des vidéos d'artistes du monde entier, avec des paiements Pi Network et WART.">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Pi Network SDK -->
-<script src="https://sdk.minepi.com/pi-sdk.js"></script>
+  <title>WorldArts — Le marché mondial de l'art</title>
 
-<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-<link rel="stylesheet" href="style.css">
+  <meta
+    name="description"
+    content="WorldArts est le marché mondial de l'art : découvrez, achetez et vendez des œuvres, de la musique et des vidéos avec Pi Network et WART."
+  >
+
+  <!-- Pi Network SDK -->
+  <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+
+  <!-- Styles -->
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
+
 <a href="#main" class="skip-link">Aller au contenu principal</a>
 
-<!-- =============== NAV =============== -->
+<!-- =========================================================
+     NAVIGATION
+     ========================================================= -->
 <header class="site-nav" id="siteNav">
+
   <div class="nav-inner">
+
     <a href="#home" class="brand">
-      <img src="assets/logo.svg" alt="">
+      <img src="assets/logo.svg" alt="WorldArts">
       <span class="brand-name">WorldArts</span>
     </a>
 
-    <nav class="nav-links" id="navLinks" aria-label="Navigation principale">
-      <a href="#home" class="active" data-i18n="nav.home">Home</a>
-      <a href="#gallery" data-i18n="nav.gallery">Gallery</a>
-      <a href="#artists" data-i18n="nav.artists">Artists</a>
-      <a href="#marketplace" data-i18n="nav.marketplace">Marketplace</a>
-      <a href="#about" data-i18n="nav.about">About</a>
-      <a href="#contact" data-i18n="nav.contact">Contact</a>
+    <nav
+      class="nav-links"
+      id="navLinks"
+      aria-label="Navigation principale"
+    >
+      <a href="#home" class="active" data-i18n="nav.home">
+        Accueil
+      </a>
+
+      <a href="#gallery" data-i18n="nav.gallery">
+        Galerie
+      </a>
+
+      <a href="#artists" data-i18n="nav.artists">
+        Artistes
+      </a>
+
+      <a href="#marketplace" data-i18n="nav.marketplace">
+        Marché
+      </a>
+
+      <a href="#about" data-i18n="nav.about">
+        À propos
+      </a>
+
+      <a href="#contact" data-i18n="nav.contact">
+        Contact
+      </a>
     </nav>
 
     <div class="nav-tools">
-      <select class="lang-select" id="langSelect" aria-label="Choisir la langue">
-        <option value="fr">FR</option>
-        <option value="en">EN</option>
-        <option value="rn">RN</option>
-        <option value="sw">SW</option>
-        <option value="ar">AR</option>
-        <option value="zh">ZH</option>
-      </select>
 
-      <button class="icon-btn" id="themeToggle" aria-label="Changer de thème">
-        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.4M12 19.1v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></svg>
-      </button>
+      <!-- Language -->
+      <div class="lang-wrap">
 
-      <div class="nav-cta">
-        <button class="btn btn-primary btn-sm" id="piConnectBtn" data-i18n="nav.connect">
-          <span class="long">Connect with Pi</span>
-        </button>
+        <label
+          for="langSelect"
+          class="sr-only"
+        >
+          Language
+        </label>
+
+        <select
+          id="langSelect"
+          class="lang-select"
+          aria-label="Choisir la langue"
+        >
+          <option value="fr">FR</option>
+          <option value="en">EN</option>
+          <option value="rn">RN</option>
+          <option value="sw">SW</option>
+          <option value="ar">AR</option>
+          <option value="zh">ZH</option>
+        </select>
+
       </div>
 
-      <button class="nav-burger icon-btn" id="navBurger" aria-label="Menu" aria-expanded="false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      <!-- Theme -->
+      <button
+        class="icon-btn"
+        id="themeToggle"
+        type="button"
+        aria-label="Changer de thème"
+      >
+        <svg
+          id="themeIcon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        >
+          <circle cx="12" cy="12" r="4.5"/>
+          <path d="M12 2.5v2.4M12 19.1v2.4"/>
+          <path d="M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7"/>
+          <path d="M2.5 12h2.4M19.1 12h2.4"/>
+          <path d="M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/>
+        </svg>
       </button>
+
+      <!-- Main Pi button -->
+      <div class="nav-cta">
+
+        <button
+          class="btn btn-primary btn-sm"
+          id="piConnectBtn"
+          type="button"
+          data-i18n="nav.connect"
+        >
+          Se connecter avec Pi
+        </button>
+
+      </div>
+
+      <!-- Mobile menu -->
+      <button
+        class="nav-burger icon-btn"
+        id="navBurger"
+        type="button"
+        aria-label="Menu"
+        aria-expanded="false"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+        >
+          <path d="M3 6h18M3 12h18M3 18h18"/>
+        </svg>
+      </button>
+
     </div>
   </div>
 </header>
 
+
 <main id="main">
 
-  <!-- =============== HERO =============== -->
-  <section class="hero" id="home">
-    <svg class="hero-map" viewBox="0 0 1180 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <!-- dotted world constellation, purely decorative -->
-      <g fill="currentColor" style="color:var(--gold)">
-        <!-- generated dot grid -->
-      </g>
-    </svg>
+<!-- =========================================================
+     HERO
+     ========================================================= -->
+<section class="hero" id="home">
 
-    <div class="hero-inner">
-      <div class="hero-logo">
-        <img src="assets/logo.svg" alt="WorldArts">
-      </div>
-      <span class="eyebrow" data-i18n="hero.eyebrow">The world's art, one passport</span>
-      <h1 data-i18n-html="hero.title">Where every <em>culture</em><br>finds its gallery</h1>
-      <p class="lede" data-i18n="hero.lede">Discover, collect and trade original art, music and film from creators across every continent — paid instantly with Pi and WART.</p>
-      <div class="hero-actions">
-        <button class="btn btn-primary" id="heroConnectBtn" data-i18n="hero.connect">Connect with Pi</button>
-        <a href="#art-market" class="btn btn-ghost" data-i18n="hero.explore">Explore the gallery</a>
-      </div>
+  <svg
+    class="hero-map"
+    viewBox="0 0 1180 420"
+    preserveAspectRatio="xMidYMid slice"
+    aria-hidden="true"
+  >
+    <g fill="currentColor" style="color:var(--gold)">
+    </g>
+  </svg>
 
-      <div class="hero-stats">
-        <div class="stat"><span class="num">120+</span><span class="lbl" data-i18n="hero.stat1">Countries</span></div>
-        <div class="stat"><span class="num">6</span><span class="lbl" data-i18n="hero.stat2">Languages</span></div>
-        <div class="stat"><span class="num">Pi / WART</span><span class="lbl" data-i18n="hero.stat3">Native payments</span></div>
-      </div>
+  <div class="hero-inner">
+
+    <div class="hero-logo">
+      <img src="assets/logo.svg" alt="WorldArts">
     </div>
-  </section>
 
-  <!-- =============== 4 FEATURE CARDS =============== -->
-  <section id="gallery">
-    <div class="container">
-      <div class="section-head">
-        <span class="eyebrow" data-i18n="features.eyebrow">Four rooms, one gallery</span>
-        <h2 data-i18n="features.title">Everything the world creates</h2>
-        <p data-i18n="features.lede">One passport-sized entry point into art, sound, motion and trade.</p>
-      </div>
+    <span
+      class="eyebrow"
+      data-i18n="hero.eyebrow"
+    >
+      Marché d'art mondial
+    </span>
 
-      <div class="grid-4">
-        <article class="placard">
-          <span class="stamp" data-i18n="features.card1.stamp">Visual</span>
-          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5-9 9"/></svg></div>
-          <h3 data-i18n="features.card1.title">Discover Art</h3>
-          <p data-i18n="features.card1.text">Curated paintings, sculpture and digital art from independent galleries worldwide.</p>
-          <a href="#gallery" class="link" data-i18n="features.card1.link">Browse the gallery <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-        </article>
+    <h1 data-i18n="hero.title">
+      Découvrez, collectionnez et vendez de l'art
+      <em>partout dans le monde</em>
+    </h1>
 
-        <article class="placard">
-          <span class="stamp" data-i18n="features.card2.stamp">Audio</span>
-          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
-          <h3 data-i18n="features.card2.title">Discover Music</h3>
-          <p data-i18n="features.card2.text">Original tracks and albums from independent musicians across every continent.</p>
-          <a href="#gallery" class="link" data-i18n="features.card2.link">Listen now <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-        </article>
+    <p
+      class="lede"
+      data-i18n="hero.subtitle"
+    >
+      WorldArts réunit artistes et collectionneurs autour
+      d'œuvres, de musique et de vidéos, avec des paiements
+      en Pi Network et en WART.
+    </p>
 
-        <article class="placard">
-          <span class="stamp" data-i18n="features.card3.stamp">Motion</span>
-          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M21 8.5v7L17 13z"/></svg></div>
-          <h3 data-i18n="features.card3.title">Discover Videos</h3>
-          <p data-i18n="features.card3.text">Short films, documentaries and visual stories told by creators you won't find anywhere else.</p>
-          <a href="#gallery" class="link" data-i18n="features.card3.link">Watch now <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-        </article>
+    <div class="hero-actions">
 
-        <article class="placard">
-          <span class="stamp" data-i18n="features.card4.stamp">Trade</span>
-          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9.5"/><path d="M8.5 12h7M12 8.5v7"/></svg></div>
-          <h3 data-i18n="features.card4.title">Buy &amp; Sell with Pi</h3>
-          <p data-i18n="features.card4.text">Every transaction settles natively in Pi or WART — no dollars, no intermediaries.</p>
-          <a href="#marketplace" class="link" data-i18n="features.card4.link">Open marketplace <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-        </article>
-      </div>
+      <button
+        class="btn btn-primary"
+        id="heroConnectBtn"
+        type="button"
+        data-i18n="hero.connect"
+      >
+        Se connecter avec Pi
+      </button>
+
+      <a
+        href="#gallery"
+        class="btn btn-ghost"
+        data-i18n="hero.explore"
+      >
+        Explorer la galerie
+      </a>
+
     </div>
-  </section>
 
-  <!-- =============== LIVE ARTWORK MARKET =============== -->
-  <section id="art-market">
-    <div class="container">
-      <div class="section-head">
-        <span class="eyebrow" data-i18n="gallery.eyebrow">Selection</span>
-        <h2 data-i18n="gallery.title">The gallery wall</h2>
-        <p data-i18n="gallery.text">Live artworks loaded from the WorldArts backend.</p>
+    <div class="hero-stats">
+
+      <div class="stat">
+        <span class="num">120+</span>
+        <span class="lbl">Countries</span>
       </div>
-      <div class="artwork-grid" data-artworks aria-live="polite">
-        <p class="loading-state">Loading artworks...</p>
+
+      <div class="stat">
+        <span class="num">6</span>
+        <span class="lbl">Languages</span>
       </div>
+
+      <div class="stat">
+        <span class="num">Pi / WART</span>
+        <span class="lbl">Native payments</span>
+      </div>
+
     </div>
-  </section>
 
-  <!-- =============== ABOUT =============== -->
-  <section id="about">
-    <div class="container about-wrap">
-      <div class="about-visual">
-        <svg viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="1"><circle cx="100" cy="100" r="90"/><ellipse cx="100" cy="100" rx="90" ry="38"/><ellipse cx="100" cy="100" rx="38" ry="90"/><path d="M10 100h180"/></svg>
-      </div>
-      <div class="about-copy">
-        <span class="eyebrow" data-i18n="about.eyebrow">Our mission</span>
-        <h2 data-i18n="about.title">Art shouldn't need a translator</h2>
-        <p data-i18n="about.text1">WorldArts was built so that a painter in Bujumbura, a musician in Jakarta and a collector in Lagos can meet on the same page, in their own language, and trade value directly.</p>
-        <p data-i18n="about.text2">The interface speaks six languages natively, and every payment runs on Pi Network — fast, borderless, and built for the next generation of creators.</p>
-        <div class="lang-pills">
-          <span>Kirundi</span><span>Français</span><span>English</span><span>Kiswahili</span><span>العربية</span><span>中文</span>
+    <p class="hero-payment-note" data-i18n="hero.note">
+      Paiements exclusivement en π (Pi) et WART — aucun dollar,
+      aucun USDT
+    </p>
+
+  </div>
+</section>
+
+
+<!-- =========================================================
+     FEATURES
+     ========================================================= -->
+<section id="features">
+
+  <div class="container">
+
+    <div class="section-head">
+
+      <span
+        class="eyebrow"
+        data-i18n="features.eyebrow"
+      >
+        Ce que vous pouvez faire
+      </span>
+
+      <h2 data-i18n="features.title">
+        Une seule application, tout l'art du monde
+      </h2>
+
+    </div>
+
+    <div class="grid-4">
+
+      <article class="placard">
+
+        <span class="stamp">Visual</span>
+
+        <div class="icon">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+          >
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="9" cy="9" r="2"/>
+            <path d="M21 15l-5-5-9 9"/>
+          </svg>
         </div>
-      </div>
-    </div>
-  </section>
 
-  <!-- =============== ARTISTS =============== -->
-  <section id="artists" class="artists-strip">
-    <div class="container">
-      <div class="section-head">
-        <span class="eyebrow" data-i18n="artists.eyebrow">Featured creators</span>
-        <h2 data-i18n="artists.title">Voices from every region</h2>
-      </div>
-      <div class="grid-3">
-        <div class="artist-card">
-          <div class="artist-avatar">A.N</div>
-          <h4>Aline N.</h4>
-          <div class="origin" data-i18n="artists.origin1">Bujumbura, Burundi</div>
-          <p data-i18n="artists.bio1">Mixed-media painter exploring Great Lakes folklore.</p>
-        </div>
-        <div class="artist-card">
-          <div class="artist-avatar">K.M</div>
-          <h4>Kenji M.</h4>
-          <div class="origin" data-i18n="artists.origin2">Osaka, Japan</div>
-          <p data-i18n="artists.bio2">Composer blending traditional koto with electronic sound.</p>
-        </div>
-        <div class="artist-card">
-          <div class="artist-avatar">S.A</div>
-          <h4>Samira A.</h4>
-          <div class="origin" data-i18n="artists.origin3">Cairo, Egypt</div>
-          <p data-i18n="artists.bio3">Filmmaker documenting Nile Valley craftspeople.</p>
-        </div>
-      </div>
-    </div>
-  </section>
+        <h3 data-i18n="features.art.title">
+          Découvrir l'art
+        </h3>
 
-  <!-- =============== PI PAYMENTS / MARKETPLACE =============== -->
-  <section id="marketplace">
-    <div class="container">
-      <div class="pi-section">
-        <div class="pi-inner">
-          <div class="pi-copy">
-            <span class="eyebrow" data-i18n="pi.eyebrow">Pi Network integration</span>
-            <h2 data-i18n="pi.title">Pay the way the world already does</h2>
-            <p data-i18n="pi.text">Sign in with your Pi account to browse, favorite and prepare purchases. All settlements run on Pi and the WorldArts token, WART — never fiat.</p>
-            <div class="pi-badges">
-              <span class="pi-badge"><b>π</b> Pi Network</span>
-              <span class="pi-badge"><b>WART</b> WorldArts Token</span>
-              <span class="pi-badge" data-i18n="pi.badge3">No USD · No USDT</span>
-            </div>
-          </div>
-          <div class="pi-panel">
-            <h3 data-i18n="pi.panelTitle">Pi authentication</h3>
-            <p class="small" data-i18n="pi.panelText">Connect your Pi Browser wallet to unlock checkout in Part 4.</p>
-            <div class="pi-status" id="piStatus">
-              <span class="dot"></span>
-              <span id="piStatusText" data-i18n="pi.notConnected">Not connected</span>
-            </div>
-            <button class="btn btn-primary btn-sm" id="piPanelBtn" style="margin-top:16px;width:100%" data-i18n="pi.connectBtn">Connect with Pi</button>
-            <div class="pi-log" id="piLog">— awaiting connection —</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+        <p data-i18n="features.art.text">
+          Parcourez des œuvres originales issues d'artistes
+          du monde entier.
+        </p>
 
-  <!-- =============== PI LOGIN MODAL =============== -->
-  <div class="modal-overlay" id="loginModal" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
-    <div class="modal-card">
-      <button type="button" class="modal-close" data-close="loginModal" aria-label="Close">×</button>
-      <span class="eyebrow" data-i18n="modal.login.title">Pi login</span>
-      <h2 id="loginModalTitle" data-i18n="modal.login.title">Pi login</h2>
-      <p data-i18n="modal.login.text">Authenticate with your Pi account to access WorldArts.</p>
-      <button type="button" class="btn btn-primary modal-action" id="modalConnectBtn" data-i18n="modal.login.action">Continue with Pi</button>
+        <a
+          href="#gallery"
+          class="link"
+        >
+          Galerie
+        </a>
+
+      </article>
+
+
+      <article class="placard">
+
+        <span class="stamp">Audio</span>
+
+        <div class="icon">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+          >
+            <path d="M9 18V5l12-2v13"/>
+            <circle cx="6" cy="18" r="3"/>
+            <circle cx="18" cy="16" r="3"/>
+          </svg>
+        </div>
+
+        <h3 data-i18n="features.music.title">
+          Découvrir la musique
+        </h3>
+
+        <p data-i18n="features.music.text">
+          Écoutez et soutenez des créateurs musicaux indépendants.
+        </p>
+
+      </article>
+
+
+      <article class="placard">
+
+        <span class="stamp">Motion</span>
+
+        <div class="icon">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+          >
+            <rect x="3" y="5" width="14" height="14" rx="2"/>
+            <path d="M21 8.5v7L17 13z"/>
+          </svg>
+        </div>
+
+        <h3 data-i18n="features.videos.title">
+          Découvrir les vidéos
+        </h3>
+
+        <p data-i18n="features.videos.text">
+          Explorez des créations vidéo et des performances.
+        </p>
+
+      </article>
+
+
+      <article class="placard">
+
+        <span class="stamp">Trade</span>
+
+        <div class="icon">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+          >
+            <circle cx="12" cy="12" r="9.5"/>
+            <path d="M8.5 12h7M12 8.5v7"/>
+          </svg>
+        </div>
+
+        <h3 data-i18n="features.pi.title">
+          Acheter & vendre avec Pi
+        </h3>
+
+        <p data-i18n="features.pi.text">
+          Réalisez vos transactions avec Pi Network ou WART.
+        </p>
+
+        <a
+          href="#marketplace"
+          class="link"
+        >
+          Marketplace
+        </a>
+
+      </article>
+
     </div>
   </div>
+</section>
 
-  <!-- =============== PI PAYMENT MODAL =============== -->
-  <div class="modal-overlay" id="paymentModal" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle">
-    <div class="modal-card">
-      <button type="button" class="modal-close" data-close="paymentModal" aria-label="Close">×</button>
-      <span class="eyebrow" data-i18n="payment.eyebrow">Payments</span>
-      <h2 id="paymentModalTitle" data-i18n="modal.payment.title">Confirm payment</h2>
-      <p data-i18n="modal.payment.text">This artwork will be paid directly through the Pi SDK.</p>
-      <div class="payment-confirm-box">
-        <strong id="paymentAmountLabel">Pi</strong>
-        <span id="paymentMemoLabel">WorldArts</span>
+
+<!-- =========================================================
+     REAL ARTWORK GALLERY
+     IMPORTANT: script.js 2.0 injects artwork cards here
+     ========================================================= -->
+<section id="gallery">
+
+  <div class="container">
+
+    <div class="section-head">
+
+      <span
+        class="eyebrow"
+        data-i18n="gallery.eyebrow"
+      >
+        Sélection
+      </span>
+
+      <h2 data-i18n="gallery.title">
+        Le mur de la galerie
+      </h2>
+
+    </div>
+
+    <!-- script.js loads artworks from Render here -->
+    <div
+      class="gallery-grid"
+      data-artworks
+      aria-live="polite"
+    >
+      <p class="loading-state">
+        Loading artworks...
+      </p>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- =========================================================
+     ABOUT
+     ========================================================= -->
+<section id="about">
+
+  <div class="container about-wrap">
+
+    <div class="about-visual">
+
+      <svg
+        viewBox="0 0 200 200"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1"
+      >
+        <circle cx="100" cy="100" r="90"/>
+        <ellipse cx="100" cy="100" rx="90" ry="38"/>
+        <ellipse cx="100" cy="100" rx="38" ry="90"/>
+        <path d="M10 100h180"/>
+      </svg>
+
+    </div>
+
+    <div class="about-copy">
+
+      <span
+        class="eyebrow"
+        data-i18n="about.eyebrow"
+      >
+        Notre mission
+      </span>
+
+      <h2 data-i18n="about.title">
+        L'art comme langage commun
+      </h2>
+
+      <p>
+        WorldArts réunit les créateurs et les collectionneurs
+        du monde entier dans un même espace.
+      </p>
+
+      <p>
+        L'application prend en charge six langues et les
+        paiements en Pi Network et WART.
+      </p>
+
+      <div class="lang-pills">
+        <span>Kirundi</span>
+        <span>Français</span>
+        <span>English</span>
+        <span>Kiswahili</span>
+        <span>العربية</span>
+        <span>中文</span>
       </div>
-      <button type="button" class="btn btn-primary modal-action" id="modalPayBtn" data-i18n="modal.payment.action">Pay with Pi</button>
+
     </div>
   </div>
+</section>
 
-  <!-- =============== CONTACT / FOOTER =============== -->
-  <footer id="contact">
-    <div class="container">
-      <div class="footer-grid">
-        <div class="footer-brand">
-          <a href="#home" class="brand"><img src="assets/logo.svg" alt=""><span class="brand-name">WorldArts</span></a>
-          <p data-i18n="footer.tagline">The world's marketplace for art, music and film — powered by Pi Network.</p>
-          <div class="social-row">
-            <a href="#" class="icon-btn" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
-            <a href="#" class="icon-btn" aria-label="X"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4l16 16M20 4L4 20"/></svg></a>
-            <a href="#" class="icon-btn" aria-label="Telegram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 4L2.5 11.5 10 14l2.5 7L21 4z"/><path d="M10 14l9-8"/></svg></a>
-          </div>
-        </div>
-        <div class="footer-col">
-          <h5 data-i18n="footer.explore">Explore</h5>
-          <a href="#gallery" data-i18n="nav.gallery">Gallery</a>
-          <a href="#artists" data-i18n="nav.artists">Artists</a>
-          <a href="#marketplace" data-i18n="nav.marketplace">Marketplace</a>
-        </div>
-        <div class="footer-col">
-          <h5 data-i18n="footer.company">Company</h5>
-          <a href="#about" data-i18n="nav.about">About</a>
-          <a href="#contact" data-i18n="nav.contact">Contact</a>
-          <a href="#" data-i18n="footer.terms">Terms</a>
-        </div>
-        <div class="footer-col">
-          <h5 data-i18n="footer.contactHead">Contact</h5>
-          <a href="mailto:hello@worldarts.app">hello@worldarts.app</a>
-          <a href="#" data-i18n="footer.support">Support</a>
-        </div>
+
+<!-- =========================================================
+     ARTISTS
+     ========================================================= -->
+<section id="artists" class="artists-strip">
+
+  <div class="container">
+
+    <div class="section-head">
+
+      <span
+        class="eyebrow"
+        data-i18n="artists.eyebrow"
+      >
+        Communauté
+      </span>
+
+      <h2 data-i18n="artists.title">
+        Artistes à l'honneur
+      </h2>
+
+    </div>
+
+    <div class="grid-3">
+
+      <div class="artist-card">
+        <div class="artist-avatar">A.N</div>
+        <h4>Aline N.</h4>
+        <div class="origin">Bujumbura, Burundi</div>
+        <p>
+          Mixed-media painter exploring Great Lakes folklore.
+        </p>
       </div>
-      <div class="footer-bottom">
-        <span data-i18n="footer.copyright">© 2026 WorldArts. All rights reserved.</span>
-        <div class="payments">
-          <span>π Pi</span>
-          <span>WART</span>
+
+      <div class="artist-card">
+        <div class="artist-avatar">K.M</div>
+        <h4>Kenji M.</h4>
+        <div class="origin">Osaka, Japan</div>
+        <p>
+          Composer blending traditional koto with electronic sound.
+        </p>
+      </div>
+
+      <div class="artist-card">
+        <div class="artist-avatar">S.A</div>
+        <h4>Samira A.</h4>
+        <div class="origin">Cairo, Egypt</div>
+        <p>
+          Filmmaker documenting Nile Valley craftspeople.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- =========================================================
+     PI MARKETPLACE / PAYMENT
+     ========================================================= -->
+<section id="marketplace">
+
+  <div class="container">
+
+    <div class="pi-section">
+
+      <div class="pi-inner">
+
+        <div class="pi-copy">
+
+          <span
+            class="eyebrow"
+            data-i18n="payment.eyebrow"
+          >
+            Paiements
+          </span>
+
+          <h2 data-i18n="payment.title">
+            Une monnaie pour un art sans frontières
+          </h2>
+
+          <p data-i18n="payment.text">
+            Les paiements WorldArts utilisent Pi Network ou WART.
+          </p>
+
+          <div class="pi-badges">
+            <span class="pi-badge">
+              <b>π</b> Pi Network
+            </span>
+
+            <span class="pi-badge">
+              <b>WART</b> WorldArts Token
+            </span>
+
+            <span class="pi-badge">
+              No USD · No USDT
+            </span>
+          </div>
+
         </div>
+
+
+        <!-- Pi authentication panel -->
+        <div class="pi-panel">
+
+          <h3>
+            Pi authentication
+          </h3>
+
+          <p class="small">
+            Connectez votre compte Pi pour effectuer
+            les paiements.
+          </p>
+
+          <div
+            class="pi-status"
+            id="piStatus"
+          >
+            <span class="dot"></span>
+
+            <span id="piStatusText">
+              Not connected
+            </span>
+          </div>
+
+          <button
+            class="btn btn-primary btn-sm"
+            id="modalConnectBtn"
+            type="button"
+            style="margin-top:16px;width:100%"
+          >
+            Connect with Pi
+          </button>
+
+          <div
+            class="pi-log"
+            id="piLog"
+          >
+            — awaiting connection —
+          </div>
+
+        </div>
+
       </div>
     </div>
-  </footer>
+  </div>
+</section>
+
+
+<!-- =========================================================
+     CONTACT
+     ========================================================= -->
+<section id="contact">
+
+  <div class="container">
+
+    <div class="section-head">
+
+      <span
+        class="eyebrow"
+        data-i18n="contact.eyebrow"
+      >
+        Nous écrire
+      </span>
+
+      <h2 data-i18n="contact.title">
+        Une question pour l'équipe WorldArts ?
+      </h2>
+
+    </div>
+
+    <form
+      id="contactForm"
+      class="contact-form"
+      novalidate
+    >
+
+      <div class="form-group">
+
+        <label
+          for="contactName"
+          data-i18n="contact.form.name"
+        >
+          Votre nom
+        </label>
+
+        <input
+          id="contactName"
+          name="name"
+          type="text"
+          autocomplete="name"
+          required
+          data-i18n-placeholder="contact.form.name"
+          placeholder="Votre nom"
+        >
+
+      </div>
+
+
+      <div class="form-group">
+
+        <label
+          for="contactEmail"
+          data-i18n="contact.form.email"
+        >
+          Votre email
+        </label>
+
+        <input
+          id="contactEmail"
+          name="email"
+          type="email"
+          autocomplete="email"
+          required
+          data-i18n-placeholder="contact.form.email"
+          placeholder="Votre email"
+        >
+
+      </div>
+
+
+      <div class="form-group">
+
+        <label
+          for="contactMessage"
+          data-i18n="contact.form.message"
+        >
+          Votre message
+        </label>
+
+        <textarea
+          id="contactMessage"
+          name="message"
+          rows="6"
+          required
+          data-i18n-placeholder="contact.form.message"
+          placeholder="Votre message"
+        ></textarea>
+
+      </div>
+
+
+      <button
+        class="btn btn-primary"
+        type="submit"
+        data-i18n="contact.form.send"
+      >
+        Envoyer le message
+      </button>
+
+      <p
+        id="contactStatus"
+        class="contact-status"
+        style="display:none"
+        data-i18n="contact.form.sent"
+      >
+        Merci, votre message a bien été reçu.
+      </p>
+
+    </form>
+
+  </div>
+</section>
+
 
 </main>
 
+
+<!-- =========================================================
+     LOGIN MODAL
+     script.js requires: loginModal + modalConnectBtn
+     ========================================================= -->
+<div
+  class="modal-overlay"
+  id="loginModal"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="loginModalTitle"
+>
+
+  <div class="modal">
+
+    <button
+      type="button"
+      class="modal-close"
+      data-close="loginModal"
+      aria-label="Close"
+    >
+      ×
+    </button>
+
+    <h2
+      id="loginModalTitle"
+      data-i18n="modal.login.title"
+    >
+      Connexion Pi
+    </h2>
+
+    <p data-i18n="modal.login.text">
+      Authentifiez-vous avec votre compte Pi pour accéder
+      à WorldArts.
+    </p>
+
+    <button
+      class="btn btn-primary"
+      id="modalConnectBtn"
+      type="button"
+      data-i18n="modal.login.action"
+    >
+      Continuer avec Pi
+    </button>
+
+  </div>
+</div>
+
+
+<!-- =========================================================
+     PAYMENT MODAL
+     script.js requires: paymentModal + modalPayBtn
+     ========================================================= -->
+<div
+  class="modal-overlay"
+  id="paymentModal"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="paymentModalTitle"
+>
+
+  <div class="modal">
+
+    <button
+      type="button"
+      class="modal-close"
+      data-close="paymentModal"
+      aria-label="Close"
+    >
+      ×
+    </button>
+
+    <h2
+      id="paymentModalTitle"
+      data-i18n="modal.payment.title"
+    >
+      Confirmer le paiement
+    </h2>
+
+    <p data-i18n="modal.payment.text">
+      Cette œuvre sera payée directement via le Pi SDK.
+    </p>
+
+    <button
+      class="btn btn-primary"
+      id="modalPayBtn"
+      type="button"
+      data-i18n="modal.payment.action"
+    >
+      Payer avec Pi
+    </button>
+
+  </div>
+</div>
+
+
+<!-- =========================================================
+     FOOTER
+     ========================================================= -->
+<footer>
+
+  <div class="container">
+
+    <div class="footer-grid">
+
+      <div class="footer-brand">
+
+        <a
+          href="#home"
+          class="brand"
+        >
+          <img src="assets/logo.svg" alt="">
+          <span class="brand-name">
+            WorldArts
+          </span>
+        </a>
+
+        <p>
+          The world's marketplace for art,
+          music and film — powered by Pi Network.
+        </p>
+
+      </div>
+
+
+      <div class="footer-col">
+
+        <h5>Explore</h5>
+
+        <a href="#gallery">
+          Gallery
+        </a>
+
+        <a href="#artists">
+          Artists
+        </a>
+
+        <a href="#marketplace">
+          Marketplace
+        </a>
+
+      </div>
+
+
+      <div class="footer-col">
+
+        <h5>Company</h5>
+
+        <a href="#about">
+          About
+        </a>
+
+        <a href="#contact">
+          Contact
+        </a>
+
+      </div>
+
+
+      <div class="footer-col">
+
+        <h5>Contact</h5>
+
+        <a href="mailto:hello@worldarts.app">
+          hello@worldarts.app
+        </a>
+
+      </div>
+
+    </div>
+
+
+    <div class="footer-bottom">
+
+      <span>
+        © 2026 WorldArts. All rights reserved.
+      </span>
+
+      <div class="payments">
+        <span>π Pi</span>
+        <span>WART</span>
+      </div>
+
+    </div>
+
+  </div>
+
+</footer>
+
+
+<!-- =========================================================
+     JAVASCRIPT
+     IMPORTANT: script.js 2.0 is loaded LAST
+     ========================================================= -->
 <script src="script.js"></script>
+
 </body>
 </html>
