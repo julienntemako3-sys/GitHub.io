@@ -21,7 +21,9 @@
 
 <body>
 
-<a href="#main" class="skip-link">Aller au contenu principal</a>
+<a href="#main" class="skip-link" data-i18n="accessibility.skip">
+  Aller au contenu principal
+</a>
 
 <!-- =========================================================
      NAVIGATION
@@ -30,7 +32,7 @@
 
   <div class="nav-inner">
 
-    <a href="#home" class="brand">
+    <a href="#home" class="brand" aria-label="WorldArts">
       <img src="assets/logo.svg" alt="WorldArts">
       <span class="brand-name">WorldArts</span>
     </a>
@@ -73,8 +75,9 @@
         <label
           for="langSelect"
           class="sr-only"
+          data-i18n="language.label"
         >
-          Language
+          Choisir la langue
         </label>
 
         <select
@@ -98,6 +101,7 @@
         id="themeToggle"
         type="button"
         aria-label="Changer de thème"
+        data-i18n-aria="theme.change"
       >
         <svg
           id="themeIcon"
@@ -105,6 +109,7 @@
           fill="none"
           stroke="currentColor"
           stroke-width="1.6"
+          aria-hidden="true"
         >
           <circle cx="12" cy="12" r="4.5"/>
           <path d="M12 2.5v2.4M12 19.1v2.4"/>
@@ -116,7 +121,6 @@
 
       <!-- Main Pi button -->
       <div class="nav-cta">
-
         <button
           class="btn btn-primary btn-sm"
           id="piConnectBtn"
@@ -125,7 +129,6 @@
         >
           Se connecter avec Pi
         </button>
-
       </div>
 
       <!-- Mobile menu -->
@@ -134,13 +137,16 @@
         id="navBurger"
         type="button"
         aria-label="Menu"
+        data-i18n-aria="nav.menu"
         aria-expanded="false"
+        aria-controls="navLinks"
       >
         <svg
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
           stroke-width="1.8"
+          aria-hidden="true"
         >
           <path d="M3 6h18M3 12h18M3 18h18"/>
         </svg>
@@ -164,8 +170,7 @@
     preserveAspectRatio="xMidYMid slice"
     aria-hidden="true"
   >
-    <g fill="currentColor" style="color:var(--gold)">
-    </g>
+    <g fill="currentColor" style="color:var(--gold)"></g>
   </svg>
 
   <div class="hero-inner">
@@ -220,22 +225,40 @@
 
       <div class="stat">
         <span class="num">120+</span>
-        <span class="lbl">Countries</span>
+        <span
+          class="lbl"
+          data-i18n="hero.stats.countries"
+        >
+          Pays
+        </span>
       </div>
 
       <div class="stat">
         <span class="num">6</span>
-        <span class="lbl">Languages</span>
+        <span
+          class="lbl"
+          data-i18n="hero.stats.languages"
+        >
+          Langues
+        </span>
       </div>
 
       <div class="stat">
         <span class="num">Pi / WART</span>
-        <span class="lbl">Native payments</span>
+        <span
+          class="lbl"
+          data-i18n="hero.stats.payments"
+        >
+          Paiements natifs
+        </span>
       </div>
 
     </div>
 
-    <p class="hero-payment-note" data-i18n="hero.note">
+    <p
+      class="hero-payment-note"
+      data-i18n="hero.note"
+    >
       Paiements exclusivement en π (Pi) et WART — aucun dollar,
       aucun USDT
     </p>
@@ -270,7 +293,12 @@
 
       <article class="placard">
 
-        <span class="stamp">Visual</span>
+        <span
+          class="stamp"
+          data-i18n="features.visual"
+        >
+          Visuel
+        </span>
 
         <div class="icon">
           <svg
@@ -278,6 +306,7 @@
             fill="none"
             stroke="currentColor"
             stroke-width="1.6"
+            aria-hidden="true"
           >
             <rect x="3" y="3" width="18" height="18" rx="2"/>
             <circle cx="9" cy="9" r="2"/>
@@ -297,6 +326,7 @@
         <a
           href="#gallery"
           class="link"
+          data-i18n="features.gallery"
         >
           Galerie
         </a>
@@ -306,7 +336,12 @@
 
       <article class="placard">
 
-        <span class="stamp">Audio</span>
+        <span
+          class="stamp"
+          data-i18n="features.audio"
+        >
+          Audio
+        </span>
 
         <div class="icon">
           <svg
@@ -314,6 +349,7 @@
             fill="none"
             stroke="currentColor"
             stroke-width="1.6"
+            aria-hidden="true"
           >
             <path d="M9 18V5l12-2v13"/>
             <circle cx="6" cy="18" r="3"/>
@@ -334,7 +370,12 @@
 
       <article class="placard">
 
-        <span class="stamp">Motion</span>
+        <span
+          class="stamp"
+          data-i18n="features.motion"
+        >
+          Vidéo
+        </span>
 
         <div class="icon">
           <svg
@@ -342,6 +383,7 @@
             fill="none"
             stroke="currentColor"
             stroke-width="1.6"
+            aria-hidden="true"
           >
             <rect x="3" y="5" width="14" height="14" rx="2"/>
             <path d="M21 8.5v7L17 13z"/>
@@ -361,7 +403,12 @@
 
       <article class="placard">
 
-        <span class="stamp">Trade</span>
+        <span
+          class="stamp"
+          data-i18n="features.trade"
+        >
+          Commerce
+        </span>
 
         <div class="icon">
           <svg
@@ -369,6 +416,7 @@
             fill="none"
             stroke="currentColor"
             stroke-width="1.6"
+            aria-hidden="true"
           >
             <circle cx="12" cy="12" r="9.5"/>
             <path d="M8.5 12h7M12 8.5v7"/>
@@ -386,6 +434,7 @@
         <a
           href="#marketplace"
           class="link"
+          data-i18n="features.marketplace"
         >
           Marketplace
         </a>
@@ -398,8 +447,7 @@
 
 
 <!-- =========================================================
-     REAL ARTWORK GALLERY
-     IMPORTANT: script.js 2.0 injects artwork cards here
+     GALLERY
      ========================================================= -->
 <section id="gallery">
 
@@ -420,14 +468,16 @@
 
     </div>
 
-    <!-- script.js loads artworks from Render here -->
     <div
       class="gallery-grid"
       data-artworks
       aria-live="polite"
     >
-      <p class="loading-state">
-        Loading artworks...
+      <p
+        class="loading-state"
+        data-i18n="gallery.loading"
+      >
+        Chargement des œuvres...
       </p>
     </div>
 
@@ -449,6 +499,7 @@
         fill="none"
         stroke="currentColor"
         stroke-width="1"
+        aria-hidden="true"
       >
         <circle cx="100" cy="100" r="90"/>
         <ellipse cx="100" cy="100" rx="90" ry="38"/>
@@ -471,12 +522,12 @@
         L'art comme langage commun
       </h2>
 
-      <p>
+      <p data-i18n="about.text1">
         WorldArts réunit les créateurs et les collectionneurs
         du monde entier dans un même espace.
       </p>
 
-      <p>
+      <p data-i18n="about.text2">
         L'application prend en charge six langues et les
         paiements en Pi Network et WART.
       </p>
@@ -520,30 +571,64 @@
     <div class="grid-3">
 
       <div class="artist-card">
+
         <div class="artist-avatar">A.N</div>
+
         <h4>Aline N.</h4>
-        <div class="origin">Bujumbura, Burundi</div>
-        <p>
-          Mixed-media painter exploring Great Lakes folklore.
+
+        <div
+          class="origin"
+          data-i18n="artists.aline.origin"
+        >
+          Bujumbura, Burundi
+        </div>
+
+        <p data-i18n="artists.aline.bio">
+          Artiste peintre utilisant différentes techniques
+          et explorant les traditions de la région des Grands Lacs.
         </p>
+
       </div>
 
+
       <div class="artist-card">
+
         <div class="artist-avatar">K.M</div>
+
         <h4>Kenji M.</h4>
-        <div class="origin">Osaka, Japan</div>
-        <p>
-          Composer blending traditional koto with electronic sound.
+
+        <div
+          class="origin"
+          data-i18n="artists.kenji.origin"
+        >
+          Osaka, Japon
+        </div>
+
+        <p data-i18n="artists.kenji.bio">
+          Compositeur mélangeant le koto traditionnel
+          et les sonorités électroniques.
         </p>
+
       </div>
 
+
       <div class="artist-card">
+
         <div class="artist-avatar">S.A</div>
+
         <h4>Samira A.</h4>
-        <div class="origin">Cairo, Egypt</div>
-        <p>
-          Filmmaker documenting Nile Valley craftspeople.
+
+        <div
+          class="origin"
+          data-i18n="artists.samira.origin"
+        >
+          Le Caire, Égypte
+        </div>
+
+        <p data-i18n="artists.samira.bio">
+          Réalisatrice documentant les artisans de la vallée du Nil.
         </p>
+
       </div>
 
     </div>
@@ -552,7 +637,7 @@
 
 
 <!-- =========================================================
-     PI MARKETPLACE / PAYMENT
+     MARKETPLACE / PI
      ========================================================= -->
 <section id="marketplace">
 
@@ -580,17 +665,28 @@
           </p>
 
           <div class="pi-badges">
+
             <span class="pi-badge">
-              <b>π</b> Pi Network
+              <b>π</b>
+              <span data-i18n="payment.pi">
+                Pi Network
+              </span>
             </span>
 
             <span class="pi-badge">
-              <b>WART</b> WorldArts Token
+              <b>WART</b>
+              <span data-i18n="payment.wart">
+                WorldArts Token
+              </span>
             </span>
 
-            <span class="pi-badge">
-              No USD · No USDT
+            <span
+              class="pi-badge"
+              data-i18n="payment.noFiat"
+            >
+              Aucun USD · Aucun USDT
             </span>
+
           </div>
 
         </div>
@@ -599,11 +695,14 @@
         <!-- Pi authentication panel -->
         <div class="pi-panel">
 
-          <h3>
-            Pi authentication
+          <h3 data-i18n="pi.auth.title">
+            Authentification Pi
           </h3>
 
-          <p class="small">
+          <p
+            class="small"
+            data-i18n="pi.auth.text"
+          >
             Connectez votre compte Pi pour effectuer
             les paiements.
           </p>
@@ -611,28 +710,39 @@
           <div
             class="pi-status"
             id="piStatus"
+            aria-live="polite"
           >
             <span class="dot"></span>
 
-            <span id="piStatusText">
-              Not connected
+            <span
+              id="piStatusText"
+              data-i18n="pi.status.disconnected"
+            >
+              Non connecté
             </span>
           </div>
 
+          <!-- IMPORTANT:
+               ID unique. L'ancien modalConnectBtn
+               apparaissait deux fois. -->
           <button
             class="btn btn-primary btn-sm"
-            id="modalConnectBtn"
+            id="piPanelConnectBtn"
             type="button"
             style="margin-top:16px;width:100%"
+            data-i18n="pi.auth.connect"
           >
-            Connect with Pi
+            Se connecter avec Pi
           </button>
 
           <div
             class="pi-log"
             id="piLog"
+            aria-live="polite"
           >
-            — awaiting connection —
+            <span data-i18n="pi.status.waiting">
+              — en attente de connexion —
+            </span>
           </div>
 
         </div>
@@ -758,13 +868,11 @@
   </div>
 </section>
 
-
 </main>
 
 
 <!-- =========================================================
      LOGIN MODAL
-     script.js requires: loginModal + modalConnectBtn
      ========================================================= -->
 <div
   class="modal-overlay"
@@ -780,7 +888,8 @@
       type="button"
       class="modal-close"
       data-close="loginModal"
-      aria-label="Close"
+      aria-label="Fermer"
+      data-i18n-aria="modal.close"
     >
       ×
     </button>
@@ -797,6 +906,7 @@
       à WorldArts.
     </p>
 
+    <!-- ID unique du bouton de connexion du MODAL -->
     <button
       class="btn btn-primary"
       id="modalConnectBtn"
@@ -812,7 +922,6 @@
 
 <!-- =========================================================
      PAYMENT MODAL
-     script.js requires: paymentModal + modalPayBtn
      ========================================================= -->
 <div
   class="modal-overlay"
@@ -828,7 +937,8 @@
       type="button"
       class="modal-close"
       data-close="paymentModal"
-      aria-label="Close"
+      aria-label="Fermer"
+      data-i18n-aria="modal.close"
     >
       ×
     </button>
@@ -871,6 +981,7 @@
         <a
           href="#home"
           class="brand"
+          aria-label="WorldArts"
         >
           <img src="assets/logo.svg" alt="">
           <span class="brand-name">
@@ -878,9 +989,9 @@
           </span>
         </a>
 
-        <p>
-          The world's marketplace for art,
-          music and film — powered by Pi Network.
+        <p data-i18n="footer.description">
+          Le marché mondial de l'art, de la musique et du cinéma,
+          propulsé par Pi Network.
         </p>
 
       </div>
@@ -888,18 +999,29 @@
 
       <div class="footer-col">
 
-        <h5>Explore</h5>
+        <h5 data-i18n="footer.explore">
+          Explorer
+        </h5>
 
-        <a href="#gallery">
-          Gallery
+        <a
+          href="#gallery"
+          data-i18n="nav.gallery"
+        >
+          Galerie
         </a>
 
-        <a href="#artists">
-          Artists
+        <a
+          href="#artists"
+          data-i18n="nav.artists"
+        >
+          Artistes
         </a>
 
-        <a href="#marketplace">
-          Marketplace
+        <a
+          href="#marketplace"
+          data-i18n="nav.marketplace"
+        >
+          Marché
         </a>
 
       </div>
@@ -907,13 +1029,21 @@
 
       <div class="footer-col">
 
-        <h5>Company</h5>
+        <h5 data-i18n="footer.company">
+          Organisation
+        </h5>
 
-        <a href="#about">
-          About
+        <a
+          href="#about"
+          data-i18n="nav.about"
+        >
+          À propos
         </a>
 
-        <a href="#contact">
+        <a
+          href="#contact"
+          data-i18n="nav.contact"
+        >
           Contact
         </a>
 
@@ -922,7 +1052,9 @@
 
       <div class="footer-col">
 
-        <h5>Contact</h5>
+        <h5 data-i18n="footer.contact">
+          Contact
+        </h5>
 
         <a href="mailto:hello@worldarts.app">
           hello@worldarts.app
@@ -935,8 +1067,8 @@
 
     <div class="footer-bottom">
 
-      <span>
-        © 2026 WorldArts. All rights reserved.
+      <span data-i18n="footer.rights">
+        © 2026 WorldArts. Tous droits réservés.
       </span>
 
       <div class="payments">
@@ -953,7 +1085,6 @@
 
 <!-- =========================================================
      JAVASCRIPT
-     IMPORTANT: script.js 2.0 is loaded LAST
      ========================================================= -->
 <script src="script.js"></script>
 
