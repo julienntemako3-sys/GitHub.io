@@ -1,8 +1,3 @@
-// ==========================================================
-// WorldArts - routes/artworks.js
-// Gallery + Artwork Marketplace
-// Payments: Pi Network + WART
-// ==========================================================
 const express = require("express");
 
 const router = express.Router();
@@ -10,343 +5,222 @@ const router = express.Router();
 const { artworks } = require("../config/store");
 const { requireAuth } = require("../middleware/auth");
 
-function cleanText(value, fallback = "") {
-  if (value === undefined || value === null) return fallback;
+// ==========================================================
+// HELPERS
+// ==========================================================
+
+function text(value, fallback = "") {
+  if (value === undefined || value === null) {
+    return fallback;
+  }
+
   return String(value).trim();
 }
 
-function toNumber(value, fallback = 0) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : fallback;
+function number(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
 }
 
-function createArtworkId() {
+function newId() {
   return (
     "art_" +
     Date.now() +
     "_" +
-    Math.random().toString(36).slice(2, 10)
-  );
-}
-const express = require("express");
-
-const router = express.Router();
-
-const { artworks } = require("../config/store");
-const { requireAuth } = require("../middleware/auth");
-
-// ----------------------------------------------------------
-// Helpers
-// ----------------------------------------------------------
-
-function cleanText(value, fallback = "") {
-  if (value === undefined || value === null) return fallback;
-  return String(value).trim();
-}
-
-function toNumber(value, fallback = 0) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : fallback;
-}
-
-function createArtworkId() {
-  return (
-    "art_" +
-    Date.now() +
-    "_" +
-    Math.random().toString(36).slice(2, 10)
+    Math.random().toString(36).substring(2, 10)
   );
 }
 
-// ----------------------------------------------------------
-// Normalize artwork for frontend
-// ----------------------------------------------------------
+// ==========================================================
+// FORMAT ARTWORK FOR FRONTEND
+// ==========================================================
 
-function normalizeArtwork(artwork) {
-  const rawPrice =
-    artwork && artwork.price !== undefined
-      ? artwork.price
-      : 0;
-
+function formatArtwork(item) {
   let pi = 0;
   let wart = 0;
 
   if (
-    rawPrice &&
-    typeof rawPrice === "object" &&
-    !Array.isArray(rawPrice)
+    item.price &&
+    typeof item.price === "object"
   ) {
-    pi = toNumber(rawPrice.pi, 0);
-    wart = toNumber(rawPrice.wart, 0);
+    pi = number(item.price.pi);
+    wart = number(item.price.wart);
   } else {
-    const amount = toNumber(rawPrice, 0);
+    const amount = number(item.price);
 
-    const selectedCurrency = cleanText(
-      artwork.currency,
-      "Pi"
-    ).toUpperCase();
-
-    if (selectedCurrency === "WART") {
+    if (
+      text(item.currency, "Pi").toUpperCase() === "WART"
+    ) {
       wart = amount;
     } else {
       pi = amount;
     }
   }
 
-  let currency = "Pi";
-  let displayPrice = pi;
-
-  if (pi > 0) {
-    currency = "Pi";
-    displayPrice = pi;
-  } else if (wart > 0) {
-    currency = "WART";
-    displayPrice = wart;
-  }
-
-  const artist = cleanText(
-    artwork.artist ||
-    artwork.artistName ||
-    artwork.creator ||
+  const artist = text(
+    item.artist ||
+    item.artistName ||
     "WorldArts Artist"
   );
 
-  const imageUrl = cleanText(
-    artwork.imageUrl ||
-    artwork.image ||
-    artwork.cover ||
-    ""
+  const image = text(
+    item.imageUrl ||
+    item.image ||
+    item.cover
   );
 
-  return {
-    id: cleanText(artwork.id),
-    title: cleanText(
-      artwork.title,
-      "WorldArts Artwork"
-    ),
+  let price = pi;
+  let currency = "Pi";
 
+  if (pi <= 0 && wart > 0) {
+    price = wart;
+    currency = "WART";
+  }
+
+  return {
+    id: text(item.id),
+    title: text(item.title, "WorldArts Artwork"),
     artist,
     artistName: artist,
-
-    description: cleanText(
-      artwork.description
-    ),
-
-    imageUrl,
-    image: imageUrl,
-
-    category: cleanText(
-      artwork.category,
-      "Art"
-    ),
-
-    price: displayPrice,
+    description: text(item.description),
+    imageUrl: image,
+    image,
+    category: text(item.category, "Art"),
+    price,
     currency,
-
     prices: {
       pi,
       wart
     },
-
-    status: cleanText(
-      artwork.status,
-      "published"
-    ).toLowerCase(),
-
-    artistId: cleanText(
-      artwork.artistId
-    ),
-
+    status: text(item.status, "published").toLowerCase(),
+    artistId: text(item.artistId),
     createdAt:
-      artwork.createdAt ||
+      item.createdAt ||
       new Date().toISOString(),
-
     updatedAt:
-      artwork.updatedAt ||
+      item.updatedAt ||
       new Date().toISOString()
   };
 }
 
-// ----------------------------------------------------------
-// Demo artworks
-// ----------------------------------------------------------
+// ==========================================================
+// DEMO ARTWORKS
+// ==========================================================
 
-function ensureDemoArtworks() {
-  if (artworks.size > 0) return;
+function createDemoArtworks() {
+  if (artworks.size > 0) {
+    return;
+  }
 
   const now = new Date().toISOString();
 
-  const demoArtworks = [
+  const list = [
     {
-      id: createArtworkId(),
-
+      id: newId(),
       title: "Dawn over Lake Tanganyika",
-
       artist: "Amara K.",
       artistName: "Amara K.",
-
       description:
-        "A beautiful artistic vision inspired by Lake Tanganyika and the first light of the day.",
-
+        "Artwork inspired by Lake Tanganyika and African creativity.",
       imageUrl:
         "https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=1200&q=85",
-
       category: "Painting",
-
       price: {
         pi: 0.001,
         wart: 0
       },
-
       currency: "Pi",
-
       status: "published",
-
-      artistId: "demo-artist-amara",
-
+      artistId: "demo-amara",
       createdAt: now,
       updatedAt: now
     },
 
     {
-      id: createArtworkId(),
-
+      id: newId(),
       title: "African Colors",
-
       artist: "Amani Studio",
       artistName: "Amani Studio",
-
       description:
-        "A contemporary artwork celebrating African colors, culture and creativity.",
-
+        "Contemporary artwork celebrating African colors and culture.",
       imageUrl:
         "https://images.unsplash.com/photo-1549490349-8643362247b5?auto=format&fit=crop&w=1200&q=85",
-
       category: "Contemporary Art",
-
       price: {
         pi: 0.002,
         wart: 0
       },
-
       currency: "Pi",
-
       status: "published",
-
-      artistId: "demo-artist-amani",
-
+      artistId: "demo-amani",
       createdAt: now,
       updatedAt: now
     },
 
     {
-      id: createArtworkId(),
-
+      id: newId(),
       title: "Spirit of Africa",
-
       artist: "Kira Arts",
       artistName: "Kira Arts",
-
       description:
-        "An original digital artwork inspired by African heritage and modern creativity.",
-
+        "Digital artwork inspired by African heritage.",
       imageUrl:
         "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=1200&q=85",
-
       category: "Digital Art",
-
       price: {
         pi: 0.003,
         wart: 0
       },
-
       currency: "Pi",
-
       status: "published",
-
-      artistId: "demo-artist-kira",
-
-      createdAt: now,
-      updatedAt: now
-    },
-
-    {
-      id: createArtworkId(),
-
-      title: "Golden Heritage",
-
-      artist: "WorldArts Collection",
-      artistName: "WorldArts Collection",
-
-      description:
-        "A premium collection piece representing heritage, beauty and artistic expression.",
-
-      imageUrl:
-        "https://images.unsplash.com/photo-1541961017774-22349e4a1262?auto=format&fit=crop&w=1200&q=85",
-
-      category: "Collection",
-
-      price: {
-        pi: 0.005,
-        wart: 0
-      },
-
-      currency: "Pi",
-
-      status: "published",
-
-      artistId: "worldarts-collection",
-
+      artistId: "demo-kira",
       createdAt: now,
       updatedAt: now
     }
   ];
 
-  for (const artwork of demoArtworks) {
-    artworks.set(
-      artwork.id,
-      artwork
-    );
-  }
+  list.forEach((item) => {
+    artworks.set(item.id, item);
+  });
 }
 
-// ----------------------------------------------------------
-// GET ALL ARTWORKS
+// ==========================================================
+// GET ALL
 // GET /api/artworks
-// ----------------------------------------------------------
+// ==========================================================
 
 router.get("/", (req, res) => {
   try {
-    ensureDemoArtworks();
-
-    const status = cleanText(
-      req.query.status,
-      "published"
-    ).toLowerCase();
+    createDemoArtworks();
 
     let result = Array.from(
       artworks.values()
     );
 
+    const status = text(
+      req.query.status,
+      "published"
+    ).toLowerCase();
+
     if (status !== "all") {
       result = result.filter(
-        artwork =>
-          cleanText(
-            artwork.status,
+        (item) =>
+          text(
+            item.status,
             "published"
           ).toLowerCase() === status
       );
     }
 
-    const category = cleanText(
+    const category = text(
       req.query.category
     ).toLowerCase();
 
     if (category) {
       result = result.filter(
-        artwork =>
-          cleanText(
-            artwork.category
+        (item) =>
+          text(
+            item.category
           ).toLowerCase() === category
       );
     }
@@ -357,108 +231,93 @@ router.get("/", (req, res) => {
         new Date(a.createdAt)
     );
 
-    return res.json({
+    return res.status(200).json({
       success: true,
       count: result.length,
-      artworks: result.map(
-        normalizeArtwork
-      )
+      artworks: result.map(formatArtwork)
     });
+
   } catch (error) {
     console.error(
-      "GET /api/artworks error:",
+      "ARTWORKS GET ERROR:",
       error
     );
 
     return res.status(500).json({
       success: false,
-      error: "Impossible de charger les œuvres."
+      error: "Gallery error"
     });
   }
 });
 
-// ----------------------------------------------------------
-// GET ONE ARTWORK
+// ==========================================================
+// GET ONE
 // GET /api/artworks/:id
-// ----------------------------------------------------------
+// ==========================================================
 
 router.get("/:id", (req, res) => {
   try {
-    ensureDemoArtworks();
+    createDemoArtworks();
 
-    const artwork = artworks.get(
+    const item = artworks.get(
       req.params.id
     );
 
-    if (!artwork) {
+    if (!item) {
       return res.status(404).json({
         success: false,
-        error: "Œuvre introuvable."
+        error: "Artwork not found"
       });
     }
 
-    return res.json({
+    return res.status(200).json({
       success: true,
-      artwork: normalizeArtwork(
-        artwork
-      )
+      artwork: formatArtwork(item)
     });
+
   } catch (error) {
     console.error(
-      "GET /api/artworks/:id error:",
+      "ARTWORK GET ERROR:",
       error
     );
 
     return res.status(500).json({
       success: false,
-      error: "Erreur serveur."
+      error: "Server error"
     });
   }
 });
 
-// ----------------------------------------------------------
-// CREATE ARTWORK
+// ==========================================================
+// CREATE
 // POST /api/artworks
-// ----------------------------------------------------------
+// ==========================================================
 
 router.post(
   "/",
   requireAuth,
   (req, res) => {
     try {
-      const {
-        title,
-        description,
-        imageUrl,
-        image,
-        category,
-        price,
-        currency,
-        artist,
-        artistName
-      } = req.body || {};
+      const body = req.body || {};
 
-      const cleanTitle =
-        cleanText(title);
+      const title = text(body.title);
 
-      if (!cleanTitle) {
+      const image = text(
+        body.imageUrl ||
+        body.image
+      );
+
+      if (!title) {
         return res.status(400).json({
           success: false,
-          error:
-            "Le titre de l'œuvre est obligatoire."
+          error: "Title is required"
         });
       }
 
-      const finalImage =
-        cleanText(
-          imageUrl || image
-        );
-
-      if (!finalImage) {
+      if (!image) {
         return res.status(400).json({
           success: false,
-          error:
-            "L'image de l'œuvre est obligatoire."
+          error: "Image is required"
         });
       }
 
@@ -466,32 +325,26 @@ router.post(
       let wart = 0;
 
       if (
-        price &&
-        typeof price === "object" &&
-        !Array.isArray(price)
+        body.price &&
+        typeof body.price === "object"
       ) {
-        pi = toNumber(
-          price.pi,
-          0
+        pi = number(
+          body.price.pi
         );
 
-        wart = toNumber(
-          price.wart,
-          0
+        wart = number(
+          body.price.wart
         );
       } else {
-        const amount =
-          toNumber(price, 0);
-
-        const selectedCurrency =
-          cleanText(
-            currency,
-            "Pi"
-          ).toUpperCase();
+        const amount = number(
+          body.price
+        );
 
         if (
-          selectedCurrency ===
-          "WART"
+          text(
+            body.currency,
+            "Pi"
+          ).toUpperCase() === "WART"
         ) {
           wart = amount;
         } else {
@@ -499,13 +352,10 @@ router.post(
         }
       }
 
-      if (
-        pi < 0 ||
-        wart < 0
-      ) {
+      if (pi < 0 || wart < 0) {
         return res.status(400).json({
           success: false,
-          error: "Prix invalide."
+          error: "Invalid price"
         });
       }
 
@@ -515,8 +365,7 @@ router.post(
       ) {
         return res.status(400).json({
           success: false,
-          error:
-            "Le prix doit être supérieur à zéro."
+          error: "Price is required"
         });
       }
 
@@ -527,23 +376,9 @@ router.post(
         return res.status(400).json({
           success: false,
           error:
-            "Une œuvre doit avoir un prix en Pi ou en WART."
+            "Use Pi or WART, not both"
         });
       }
-
-      const selectedCurrency =
-        pi > 0
-          ? "Pi"
-          : "WART";
-
-      const now =
-        new Date().toISOString();
-
-      const userId =
-        req.user &&
-        req.user.id
-          ? req.user.id
-          : "unknown-user";
 
       const username =
         req.user &&
@@ -551,43 +386,47 @@ router.post(
           ? req.user.username
           : "WorldArts Artist";
 
-      const finalArtist =
-        cleanText(
-          artist ||
-          artistName ||
-          username
-        );
+      const userId =
+        req.user &&
+        req.user.id
+          ? req.user.id
+          : "unknown";
+
+      const now =
+        new Date().toISOString();
 
       const artwork = {
-        id: createArtworkId(),
+        id: newId(),
 
-        title: cleanTitle,
+        title,
 
         description:
-          cleanText(
-            description
-          ),
+          text(body.description),
 
-        imageUrl:
-          finalImage,
-
-        image:
-          finalImage,
+        imageUrl: image,
+        image,
 
         category:
-          cleanText(
-            category,
+          text(
+            body.category,
             "Art"
           ),
 
         artist:
-          finalArtist,
+          text(
+            body.artist ||
+            body.artistName,
+            username
+          ),
 
         artistName:
-          finalArtist,
+          text(
+            body.artist ||
+            body.artistName,
+            username
+          ),
 
-        artistId:
-          userId,
+        artistId: userId,
 
         price: {
           pi,
@@ -595,16 +434,15 @@ router.post(
         },
 
         currency:
-          selectedCurrency,
+          pi > 0
+            ? "Pi"
+            : "WART",
 
         status:
           "published",
 
-        createdAt:
-          now,
-
-        updatedAt:
-          now
+        createdAt: now,
+        updatedAt: now
       };
 
       artworks.set(
@@ -614,34 +452,31 @@ router.post(
 
       return res.status(201).json({
         success: true,
-
-        message:
-          "Œuvre publiée avec succès.",
-
         artwork:
-          normalizeArtwork(
+          formatArtwork(
             artwork
           )
       });
+
     } catch (error) {
       console.error(
-        "POST /api/artworks error:",
+        "ARTWORK CREATE ERROR:",
         error
       );
 
       return res.status(500).json({
         success: false,
         error:
-          "Impossible de publier l'œuvre."
+          "Unable to create artwork"
       });
     }
   }
 );
 
-// ----------------------------------------------------------
-// UPDATE ARTWORK
+// ==========================================================
+// UPDATE
 // PUT /api/artworks/:id
-// ----------------------------------------------------------
+// ==========================================================
 
 router.put(
   "/:id",
@@ -656,8 +491,7 @@ router.put(
       if (!artwork) {
         return res.status(404).json({
           success: false,
-          error:
-            "Œuvre introuvable."
+          error: "Artwork not found"
         });
       }
 
@@ -667,213 +501,155 @@ router.put(
       ) {
         return res.status(403).json({
           success: false,
-          error:
-            "Vous ne pouvez pas modifier cette œuvre."
+          error: "Not authorized"
         });
       }
 
-      const {
-        title,
-        description,
-        imageUrl,
-        image,
-        category,
-        price,
-        currency,
-        status,
-        artist,
-        artistName
-      } = req.body || {};
+      const body =
+        req.body || {};
 
       if (
-        title !== undefined
+        body.title !== undefined
       ) {
-        const newTitle =
-          cleanText(title);
+        artwork.title =
+          text(body.title);
 
-        if (!newTitle) {
+        if (!artwork.title) {
           return res.status(400).json({
             success: false,
-            error:
-              "Le titre ne peut pas être vide."
+            error: "Title cannot be empty"
           });
         }
-
-        artwork.title =
-          newTitle;
       }
 
       if (
-        description !==
+        body.description !==
         undefined
       ) {
         artwork.description =
-          cleanText(
-            description
+          text(
+            body.description
           );
       }
 
       if (
-        imageUrl !==
+        body.imageUrl !==
           undefined ||
-        image !==
+        body.image !==
           undefined
       ) {
-        const newImage =
-          cleanText(
-            imageUrl || image
+        const image =
+          text(
+            body.imageUrl ||
+            body.image
           );
 
-        if (!newImage) {
+        if (!image) {
           return res.status(400).json({
             success: false,
-            error:
-              "L'image ne peut pas être vide."
+            error: "Image cannot be empty"
           });
         }
 
         artwork.imageUrl =
-          newImage;
+          image;
 
         artwork.image =
-          newImage;
+          image;
       }
 
       if (
-        category !==
+        body.category !==
         undefined
       ) {
         artwork.category =
-          cleanText(
-            category,
+          text(
+            body.category,
             "Art"
           );
       }
 
       if (
-        artist !==
-          undefined ||
-        artistName !==
-          undefined
-      ) {
-        const newArtist =
-          cleanText(
-            artist ||
-            artistName
-          );
-
-        if (newArtist) {
-          artwork.artist =
-            newArtist;
-
-          artwork.artistName =
-            newArtist;
-        }
-      }
-
-      if (
-        status !==
+        body.status !==
         undefined
       ) {
-        const allowedStatuses = [
+        const allowed = [
           "published",
           "draft",
           "sold",
           "hidden"
         ];
 
-        const newStatus =
-          cleanText(
-            status
+        const status =
+          text(
+            body.status
           ).toLowerCase();
 
         if (
-          !allowedStatuses.includes(
-            newStatus
+          !allowed.includes(
+            status
           )
         ) {
           return res.status(400).json({
             success: false,
-            error:
-              "Statut invalide."
+            error: "Invalid status"
           });
         }
 
         artwork.status =
-          newStatus;
+          status;
       }
 
       if (
-        price !==
+        body.price !==
           undefined ||
-        currency !==
+        body.currency !==
           undefined
       ) {
         let pi = 0;
         let wart = 0;
 
         if (
-          price &&
-          typeof price ===
-            "object" &&
-          !Array.isArray(
-            price
-          )
+          body.price &&
+          typeof body.price ===
+            "object"
         ) {
-          pi = toNumber(
-            price.pi,
-            0
+          pi = number(
+            body.price.pi
           );
 
-          wart = toNumber(
-            price.wart,
-            0
+          wart = number(
+            body.price.wart
           );
         } else {
           const amount =
-            toNumber(
-              price,
-              0
+            number(
+              body.price
             );
 
-          const selectedCurrency =
-            cleanText(
-              currency,
+          const currency =
+            text(
+              body.currency,
               artwork.currency ||
                 "Pi"
             ).toUpperCase();
 
           if (
-            selectedCurrency ===
-            "WART"
+            currency === "WART"
           ) {
-            wart =
-              amount;
+            wart = amount;
           } else {
-            pi =
-              amount;
+            pi = amount;
           }
         }
 
         if (
-          pi < 0 ||
-          wart < 0
+          pi <= 0 &&
+          wart <= 0
         ) {
           return res.status(400).json({
             success: false,
-            error:
-              "Prix invalide."
-          });
-        }
-
-        if (
-          pi === 0 &&
-          wart === 0
-        ) {
-          return res.status(400).json({
-            success: false,
-            error:
-              "Le prix doit être supérieur à zéro."
+            error: "Invalid price"
           });
         }
 
@@ -884,7 +660,7 @@ router.put(
           return res.status(400).json({
             success: false,
             error:
-              "Une œuvre doit avoir un prix en Pi ou en WART."
+              "Use Pi or WART, not both"
           });
         }
 
@@ -907,32 +683,33 @@ router.put(
         artwork
       );
 
-      return res.json({
+      return res.status(200).json({
         success: true,
         artwork:
-          normalizeArtwork(
+          formatArtwork(
             artwork
           )
       });
+
     } catch (error) {
       console.error(
-        "PUT /api/artworks/:id error:",
+        "ARTWORK UPDATE ERROR:",
         error
       );
 
       return res.status(500).json({
         success: false,
         error:
-          "Impossible de modifier l'œuvre."
+          "Unable to update artwork"
       });
     }
   }
 );
 
-// ----------------------------------------------------------
-// DELETE ARTWORK
+// ==========================================================
+// DELETE
 // DELETE /api/artworks/:id
-// ----------------------------------------------------------
+// ==========================================================
 
 router.delete(
   "/:id",
@@ -947,8 +724,7 @@ router.delete(
       if (!artwork) {
         return res.status(404).json({
           success: false,
-          error:
-            "Œuvre introuvable."
+          error: "Artwork not found"
         });
       }
 
@@ -958,8 +734,7 @@ router.delete(
       ) {
         return res.status(403).json({
           success: false,
-          error:
-            "Vous ne pouvez pas supprimer cette œuvre."
+          error: "Not authorized"
         });
       }
 
@@ -967,28 +742,29 @@ router.delete(
         req.params.id
       );
 
-      return res.json({
+      return res.status(200).json({
         success: true,
         message:
-          "Œuvre supprimée avec succès."
+          "Artwork deleted"
       });
+
     } catch (error) {
       console.error(
-        "DELETE /api/artworks/:id error:",
+        "ARTWORK DELETE ERROR:",
         error
       );
 
       return res.status(500).json({
         success: false,
         error:
-          "Impossible de supprimer l'œuvre."
+          "Unable to delete artwork"
       });
     }
   }
 );
 
-// ----------------------------------------------------------
+// ==========================================================
 // EXPORT
-// ----------------------------------------------------------
+// ==========================================================
 
 module.exports = router;
