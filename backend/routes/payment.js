@@ -4,20 +4,18 @@
 const express = require("express");
 const router = express.Router();
 
-const { payments, users } = require("../config/store");
+const { payments } = require("../config/store");
 const { requireAuth, optionalAuth } = require("../middleware/auth");
 
 const PI_API_BASE_URL = String(
   process.env.PI_API_BASE_URL || "https://api.minepi.com"
 ).replace(/\/$/, "");
 
-const PI_API_KEY = process.env.PI_API_KEY || "";
+const PI_API_KEY = String(process.env.PI_API_KEY || "").trim();
 
-/**
- * ---------------------------------------------------------
- * Helpers
- * ---------------------------------------------------------
- */
+/* =========================================================
+   PI API HELPERS
+   ========================================================= */
 
 function piHeaders() {
   return {
@@ -28,7 +26,12 @@ function piHeaders() {
 
 async function piRequest(url, options = {}) {
   if (!PI_API_KEY) {
-    throw new Error("PI_API_KEY ntisobanuwe muri .env.");
+    const error = new Error(
+      "PI_API_KEY ntisobanuwe muri environment variables."
+    );
+
+    error.status = 500;
+    throw error;
   }
 
   const response = await fetch(url, {
@@ -63,39 +66,65 @@ async function piRequest(url, options = {}) {
   return data;
 }
 
+function getErrorMessage(error, fallback) {
+  return (
+    error?.data?.error ||
+    error?.data?.message ||
+    error?.message ||
+    fallback
+  );
+}
 
-/**
- * ---------------------------------------------------------
- * POST /api/payments/approve
- *
- * Called by frontend when Pi says:
- * onReadyForServerApproval(paymentId)
- * ---------------------------------------------------------
- */
+function paymentBelongsToUser(payment, user) {
+  if (!payment || !user) return false;
+
+  if (!payment.uid || !user.uid) {
+    return true;
+  }
+
+  return payment.uid === user.uid;
+}
+
+/* =========================================================
+   APPROVE PAYMENT
+   POST /api/payments/approve
+   ========================================================= */
 
 router.post("/approve", optionalAuth, async (req, res) => {
   try {
     const { paymentId } = req.body || {};
 
-    if (!paymentId) {
+    if (!paymentId || typeof paymentId !== "string") {
       return res.status(400).json({
         success: false,
         error: "paymentId irakenewe."
       });
     }
 
+    const cleanPaymentId = paymentId.trim();
+
+    if (!cleanPaymentId) {
+      return res.status(400).json({
+        success: false,
+        error: "paymentId ntishobora kuba empty."
+      });
+    }
+
     const paymentUrl =
-      `${PI_API_BASE_URL}/v2/payments/${encodeURIComponent(paymentId)}/approve`;
+      `${PI_API_BASE_URL}/v2/payments/` +
+      `${encodeURIComponent(cleanPaymentId)}/approve`;
 
     const piPayment = await piRequest(paymentUrl, {
       method: "POST"
     });
 
-    const existing = payments.get(paymentId) || {};
+    const existing = payments.get(cleanPaymentId) || {};
 
     const payment = {
       ...existing,
-      paymentId,
+
+      paymentId: cleanPaymentId,
+
       uid:
         req.user?.uid ||
         existing.uid ||
@@ -110,79 +139,117 @@ router.post("/approve", optionalAuth, async (req, res) => {
 
       piPayment,
 
-      approvedAt: new Date().toISOString(),
+      approvedAt:
+        existing.approvedAt ||
+        new Date().toISOString(),
 
       updatedAt: new Date().toISOString()
     };
 
-    payments.set(paymentId, payment);
+    payments.set(cleanPaymentId, payment);
 
-    return res.json({
+    return res.status(200).json({
       success: true,
       payment
     });
 
   } catch (error) {
-
     console.error(
-      "[Approve Payment]",
+      "[WorldArts] Approve Payment Error:",
       error.data || error.message
     );
 
     return res.status(error.status || 500).json({
       success: false,
-      error:
-        error.data?.error ||
-        error.message ||
-        "Ntivyashobotse kwemeza payment."
+      error: getErrorMessage(
+        error,
+        "Ntivyashobotse kwemeza payment ya Pi."
+      )
     });
   }
 });
 
-
-/**
- * ---------------------------------------------------------
- * POST /api/payments/complete
- *
- * Called by frontend when Pi says:
- * onReadyForServerCompletion(paymentId, txid)
- * ---------------------------------------------------------
- */
+/* =========================================================
+   COMPLETE PAYMENT
+   POST /api/payments/complete
+   ========================================================= */
 
 router.post("/complete", optionalAuth, async (req, res) => {
   try {
     const { paymentId, txid } = req.body || {};
 
-    if (!paymentId) {
+    if (!paymentId || typeof paymentId !== "string") {
       return res.status(400).json({
         success: false,
         error: "paymentId irakenewe."
       });
     }
 
-    if (!txid) {
+    if (!txid || typeof txid !== "string") {
       return res.status(400).json({
         success: false,
         error: "txid irakenewe."
       });
     }
 
+    const cleanPaymentId = paymentId.trim();
+    const cleanTxid = txid.trim();
+
+    if (!cleanPaymentId || !cleanTxid) {
+      return res.status(400).json({
+        success: false,
+        error: "paymentId na txid ntibishobora kuba empty."
+      });
+    }
+
+    const existing = payments.get(cleanPaymentId) || {};
+
+    /*
+     * Niba payment yari isanzwe yararangiye,
+     * ntidukore completion inshasha.
+     */
+    if (existing.status === "completed") {
+      return res.status(200).json({
+        success: true,
+        payment: existing,
+        alreadyCompleted: true
+      });
+    }
+
+    /*
+     * Niba hari user afise kuri request,
+     * turagenzura ko payment ari yiwe.
+     */
+    if (
+      req.user &&
+      existing.uid &&
+      !paymentBelongsToUser(existing, req.user)
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: "Nta burenganzira ufise kuri iyi payment."
+      });
+    }
+
     const paymentUrl =
-      `${PI_API_BASE_URL}/v2/payments/${encodeURIComponent(paymentId)}/complete`;
+      `${PI_API_BASE_URL}/v2/payments/` +
+      `${encodeURIComponent(cleanPaymentId)}/complete`;
 
     const piPayment = await piRequest(paymentUrl, {
       method: "POST",
       body: JSON.stringify({
-        txid
+        txid: cleanTxid
       })
     });
 
-    const existing = payments.get(paymentId) || {};
-
+    /*
+     * Turandika completed GUSA iyo Pi API
+     * yemeje completion neza.
+     */
     const payment = {
       ...existing,
 
-      paymentId,
+      paymentId: cleanPaymentId,
 
       uid:
         req.user?.uid ||
@@ -194,7 +261,7 @@ router.post("/complete", optionalAuth, async (req, res) => {
         existing.userId ||
         null,
 
-      txid,
+      txid: cleanTxid,
 
       status: "completed",
 
@@ -205,63 +272,79 @@ router.post("/complete", optionalAuth, async (req, res) => {
       updatedAt: new Date().toISOString()
     };
 
-    payments.set(paymentId, payment);
+    payments.set(cleanPaymentId, payment);
 
-    return res.json({
+    return res.status(200).json({
       success: true,
       payment
     });
 
   } catch (error) {
-
     console.error(
-      "[Complete Payment]",
+      "[WorldArts] Complete Payment Error:",
       error.data || error.message
     );
 
     return res.status(error.status || 500).json({
       success: false,
-      error:
-        error.data?.error ||
-        error.message ||
-        "Ntivyashobotse kurangiza payment."
+      error: getErrorMessage(
+        error,
+        "Ntivyashobotse kurangiza payment ya Pi."
+      )
     });
   }
 });
 
-
-/**
- * ---------------------------------------------------------
- * POST /api/payments/cancel
- *
- * Used when a payment needs to be cancelled.
- * ---------------------------------------------------------
- */
+/* =========================================================
+   CANCEL PAYMENT
+   POST /api/payments/cancel
+   ========================================================= */
 
 router.post("/cancel", optionalAuth, async (req, res) => {
   try {
     const { paymentId } = req.body || {};
 
-    if (!paymentId) {
+    if (!paymentId || typeof paymentId !== "string") {
       return res.status(400).json({
         success: false,
         error: "paymentId irakenewe."
       });
     }
 
+    const cleanPaymentId = paymentId.trim();
+
+    if (!cleanPaymentId) {
+      return res.status(400).json({
+        success: false,
+        error: "paymentId ntishobora kuba empty."
+      });
+    }
+
+    const existing = payments.get(cleanPaymentId) || {};
+
+    if (
+      req.user &&
+      existing.uid &&
+      !paymentBelongsToUser(existing, req.user)
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: "Nta burenganzira ufise kuri iyi payment."
+      });
+    }
+
     const paymentUrl =
-      `${PI_API_BASE_URL}/v2/payments/${encodeURIComponent(paymentId)}/cancel`;
+      `${PI_API_BASE_URL}/v2/payments/` +
+      `${encodeURIComponent(cleanPaymentId)}/cancel`;
 
     const piPayment = await piRequest(paymentUrl, {
       method: "POST"
     });
 
-    const existing = payments.get(paymentId) || {};
-
     const payment = {
       ...existing,
 
-      paymentId,
+      paymentId: cleanPaymentId,
 
       uid:
         req.user?.uid ||
@@ -282,61 +365,60 @@ router.post("/cancel", optionalAuth, async (req, res) => {
       updatedAt: new Date().toISOString()
     };
 
-    payments.set(paymentId, payment);
+    payments.set(cleanPaymentId, payment);
 
-    return res.json({
+    return res.status(200).json({
       success: true,
       payment
     });
 
   } catch (error) {
-
     console.error(
-      "[Cancel Payment]",
+      "[WorldArts] Cancel Payment Error:",
       error.data || error.message
     );
 
     return res.status(error.status || 500).json({
       success: false,
-      error:
-        error.data?.error ||
-        error.message ||
-        "Ntivyashobotse guhagarika payment."
+      error: getErrorMessage(
+        error,
+        "Ntivyashobotse guhagarika payment ya Pi."
+      )
     });
   }
 });
 
-
-/**
- * ---------------------------------------------------------
- * POST /api/payments/incomplete
- *
- * IMPORTANT:
- * script.js yawe ikoresha POST kuri iyi route.
- *
- * Iyo frontend ibonye payment itarangiye,
- * tuyibika muri memory kugira ngo tuyikurikirane.
- * ---------------------------------------------------------
- */
+/* =========================================================
+   INCOMPLETE PAYMENT
+   POST /api/payments/incomplete
+   ========================================================= */
 
 router.post("/incomplete", optionalAuth, (req, res) => {
   try {
-
     const { paymentId, payment } = req.body || {};
 
-    if (!paymentId) {
+    if (!paymentId || typeof paymentId !== "string") {
       return res.status(400).json({
         success: false,
         error: "paymentId irakenewe."
       });
     }
 
-    const existing = payments.get(paymentId) || {};
+    const cleanPaymentId = paymentId.trim();
+
+    if (!cleanPaymentId) {
+      return res.status(400).json({
+        success: false,
+        error: "paymentId ntishobora kuba empty."
+      });
+    }
+
+    const existing = payments.get(cleanPaymentId) || {};
 
     const record = {
       ...existing,
 
-      paymentId,
+      paymentId: cleanPaymentId,
 
       uid:
         req.user?.uid ||
@@ -362,17 +444,16 @@ router.post("/incomplete", optionalAuth, (req, res) => {
       updatedAt: new Date().toISOString()
     };
 
-    payments.set(paymentId, record);
+    payments.set(cleanPaymentId, record);
 
-    return res.json({
+    return res.status(200).json({
       success: true,
       payment: record
     });
 
   } catch (error) {
-
     console.error(
-      "[Incomplete Payment]",
+      "[WorldArts] Incomplete Payment Error:",
       error
     );
 
@@ -383,125 +464,170 @@ router.post("/incomplete", optionalAuth, (req, res) => {
   }
 });
 
-
-/**
- * ---------------------------------------------------------
- * GET /api/payments/:id
- *
- * Get one payment.
- * ---------------------------------------------------------
- */
+/* =========================================================
+   GET PAYMENT BY ID
+   IMPORTANT:
+   IYI ROUTE IZA INYUMA YA /history NA /incomplete
+   ========================================================= */
 
 router.get("/:id", requireAuth, (req, res) => {
+  try {
+    const paymentId = String(req.params.id || "").trim();
 
-  const payment = payments.get(req.params.id);
+    if (!paymentId) {
+      return res.status(400).json({
+        success: false,
+        error: "Payment ID irakenewe."
+      });
+    }
 
-  if (!payment) {
-    return res.status(404).json({
+    const payment = payments.get(paymentId);
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        error: "Payment ntibashoboye kuyibona."
+      });
+    }
+
+    if (
+      payment.uid &&
+      req.user?.uid &&
+      payment.uid !== req.user.uid
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: "Nta burenganzira ufise kuri iyi payment."
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      payment
+    });
+
+  } catch (error) {
+    console.error(
+      "[WorldArts] Get Payment Error:",
+      error
+    );
+
+    return res.status(500).json({
       success: false,
-      error: "Payment ntibashoboye kuyibona."
+      error: "Ntivyashobotse kuronka payment."
     });
   }
-
-  if (
-    payment.uid &&
-    req.user.uid &&
-    payment.uid !== req.user.uid
-  ) {
-    return res.status(403).json({
-      success: false,
-      error: "Nta burenganzira ufise kuri iyi payment."
-    });
-  }
-
-  return res.json({
-    success: true,
-    payment
-  });
 });
 
-
-/**
- * ---------------------------------------------------------
- * GET /api/payments/history
- * ---------------------------------------------------------
- */
+/* =========================================================
+   PAYMENT HISTORY
+   IMPORTANT:
+   IRI ROUTE RIZA MBERE YA /:id
+   ========================================================= */
 
 router.get("/history", requireAuth, (req, res) => {
+  try {
+    const list = Array.from(payments.values())
+      .filter(payment =>
+        payment.uid === req.user.uid
+      )
+      .sort((a, b) =>
+        String(b.updatedAt || b.createdAt || "")
+          .localeCompare(
+            String(a.updatedAt || a.createdAt || "")
+          )
+      );
 
-  const list = Array.from(payments.values())
-    .filter(payment =>
-      payment.uid === req.user.uid
-    )
-    .sort((a, b) =>
-      String(b.updatedAt || b.createdAt || "")
-        .localeCompare(
-          String(a.updatedAt || a.createdAt || "")
-        )
+    return res.status(200).json({
+      success: true,
+      payments: list
+    });
+
+  } catch (error) {
+    console.error(
+      "[WorldArts] Payment History Error:",
+      error
     );
 
-  return res.json({
-    success: true,
-    payments: list
-  });
+    return res.status(500).json({
+      success: false,
+      error: "Ntivyashobotse kuronka payment history."
+    });
+  }
 });
 
-
-/**
- * ---------------------------------------------------------
- * GET /api/payments/incomplete
- *
- * This GET route is kept too.
- *
- * So backend supports BOTH:
- * GET  /incomplete
- * POST /incomplete
- *
- * This makes it compatible with frontend/backend versions.
- * ---------------------------------------------------------
- */
+/* =========================================================
+   INCOMPLETE PAYMENTS
+   IMPORTANT:
+   IRI ROUTE RIZA MBERE YA /:id
+   ========================================================= */
 
 router.get("/incomplete", requireAuth, (req, res) => {
+  try {
+    const list = Array.from(payments.values())
+      .filter(payment =>
+        payment.uid === req.user.uid &&
+        payment.status !== "completed"
+      )
+      .sort((a, b) =>
+        String(b.updatedAt || b.createdAt || "")
+          .localeCompare(
+            String(a.updatedAt || a.createdAt || "")
+          )
+      );
 
-  const list = Array.from(payments.values())
-    .filter(payment =>
-      payment.uid === req.user.uid &&
-      payment.status !== "completed"
-    )
-    .sort((a, b) =>
-      String(b.updatedAt || b.createdAt || "")
-        .localeCompare(
-          String(a.updatedAt || a.createdAt || "")
-        )
+    return res.status(200).json({
+      success: true,
+      payments: list
+    });
+
+  } catch (error) {
+    console.error(
+      "[WorldArts] Incomplete Payments Error:",
+      error
     );
 
-  return res.json({
-    success: true,
-    payments: list
-  });
+    return res.status(500).json({
+      success: false,
+      error: "Ntivyashobotse kuronka incomplete payments."
+    });
+  }
 });
 
-
-/**
- * ---------------------------------------------------------
- * GET /api/payments
- *
- * Basic authenticated payment list.
- * ---------------------------------------------------------
- */
+/* =========================================================
+   ALL CURRENT USER PAYMENTS
+   GET /api/payments/
+   ========================================================= */
 
 router.get("/", requireAuth, (req, res) => {
+  try {
+    const list = Array.from(payments.values())
+      .filter(payment =>
+        payment.uid === req.user.uid
+      )
+      .sort((a, b) =>
+        String(b.updatedAt || b.createdAt || "")
+          .localeCompare(
+            String(a.updatedAt || a.createdAt || "")
+          )
+      );
 
-  const list = Array.from(payments.values())
-    .filter(payment =>
-      payment.uid === req.user.uid
+    return res.status(200).json({
+      success: true,
+      payments: list
+    });
+
+  } catch (error) {
+    console.error(
+      "[WorldArts] Payments List Error:",
+      error
     );
 
-  return res.json({
-    success: true,
-    payments: list
-  });
+    return res.status(500).json({
+      success: false,
+      error: "Ntivyashobotse kuronka payments."
+    });
+  }
 });
-
 
 module.exports = router;
