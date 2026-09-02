@@ -3,7 +3,31 @@
 // Gallery + Artwork Marketplace
 // Payments: Pi Network + WART
 // ==========================================================
+const express = require("express");
 
+const router = express.Router();
+
+const { artworks } = require("../config/store");
+const { requireAuth } = require("../middleware/auth");
+
+function cleanText(value, fallback = "") {
+  if (value === undefined || value === null) return fallback;
+  return String(value).trim();
+}
+
+function toNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function createArtworkId() {
+  return (
+    "art_" +
+    Date.now() +
+    "_" +
+    Math.random().toString(36).slice(2, 10)
+  );
+}
 const express = require("express");
 
 const router = express.Router();
