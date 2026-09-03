@@ -1,211 +1,144 @@
 // server.js
-require("dotenv").config();
+// WorldArts Backend - Node.js / Express
 
-const express = require("express");
-const cors = require("cors");
-const helmet = require("helmet");
-const morgan = require("morgan");
-const rateLimit = require("express-rate-limit");
+require('dotenv').config();
 
-const authRoutes = require("./routes/auth");
-const paymentsRoutes = require("./routes/payments");
-const artworksRoutes = require("./routes/artworks");
-const artistsRoutes = require("./routes/artists");
+const express = require('express');
+const cors = require('cors');
 
-const { notFound, errorHandler } =
-  require("./middleware/errorHandler");
+const {
+  notFound,
+  errorHandler
+} = require('./middleware/errorHandler');
+
+
 
 const app = express();
 
-/* ============================================================
-   SECURITY
-============================================================ */
 
-app.use(
-  helmet({
-    crossOriginResourcePolicy: false
-  })
-);
 
-/* ============================================================
-   LOGGING
-============================================================ */
+/**
+ * Middlewares
+ */
 
-app.use(
-  morgan(
-    process.env.NODE_ENV === "production"
-      ? "combined"
-      : "dev"
-  )
-);
+// CORS
+const allowedOrigins = (
+  process.env.FRONTEND_URLS || ''
+)
+.split(',')
+.map(url => url.trim())
+.filter(Boolean);
 
-/* ============================================================
-   CORS
-============================================================ */
 
-const allowedOrigins = (process.env.FRONTEND_URLS || "")
-  .split(",")
-  .map((url) => url.trim().replace(/\/$/, ""))
-  .filter(Boolean);
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      /*
-        Requests without Origin are allowed.
-        This is useful for Pi Browser/native requests.
-      */
-      if (!origin) {
-        return callback(null, true);
-      }
+app.use(cors({
 
-      const cleanOrigin = origin.replace(/\/$/, "");
+  origin: allowedOrigins.length
+    ? allowedOrigins
+    : '*',
 
-      /*
-        During initial configuration, if FRONTEND_URLS
-        is empty, allow the request instead of creating
-        a mysterious CORS failure.
-      */
-      if (
-        allowedOrigins.length === 0 ||
-        allowedOrigins.includes(cleanOrigin)
-      ) {
-        return callback(null, true);
-      }
+  methods:[
+    'GET',
+    'POST',
+    'PUT',
+    'DELETE',
+    'OPTIONS'
+  ],
 
-      console.error(
-        "CORS blocked origin:",
-        cleanOrigin
-      );
+  allowedHeaders:[
+    'Content-Type',
+    'Authorization'
+  ]
 
-      return callback(
-        new Error(
-          `Origine non autorisée par CORS : ${cleanOrigin}`
-        )
-      );
-    },
+}));
 
-    credentials: true,
 
-    methods: [
-      "GET",
-      "POST",
-      "PUT",
-      "PATCH",
-      "DELETE",
-      "OPTIONS"
-    ],
 
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization"
-    ]
-  })
-);
+// JSON parser
+app.use(express.json());
 
-/* ============================================================
-   BODY PARSER
-============================================================ */
 
-app.use(
-  express.json({
-    limit: "1mb"
-  })
-);
 
-/* ============================================================
-   RATE LIMIT
-============================================================ */
 
-const limiter = rateLimit({
-  windowMs:
-    Number(process.env.RATE_LIMIT_WINDOW_MS) ||
-    15 * 60 * 1000,
 
-  max:
-    Number(process.env.RATE_LIMIT_MAX) ||
-    200,
+/**
+ * Health check
+ */
+app.get('/health',(req,res)=>{
 
-  standardHeaders: true,
-  legacyHeaders: false,
+  res.json({
 
-  message: {
-    success: false,
-    error: "Trop de requêtes. Veuillez réessayer plus tard."
-  }
-});
+    status:'ok',
 
-app.use(limiter);
+    service:'WorldArts Backend',
 
-/* ============================================================
-   HEALTH CHECK
-============================================================ */
+    time:new Date().toISOString()
 
-app.get("/health", (req, res) => {
-  res.status(200).json({
-    success: true,
-    status: "ok",
-    service: "worldarts-backend",
-    timestamp: new Date().toISOString()
   });
+
 });
 
-/* ============================================================
-   ROOT
-============================================================ */
 
-app.get("/", (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "WorldArts Backend is running",
-    version: "1.0.0"
-  });
-});
 
-/* ============================================================
-   API ROUTES
-============================================================ */
 
-app.use("/api/auth", authRoutes);
-app.use("/api/payments", paymentsRoutes);
-app.use("/api/artworks", artworksRoutes);
-app.use("/api/artists", artistsRoutes);
 
-/* ============================================================
-   404
-============================================================ */
+/**
+ * Routes
+ */
+
+app.use(
+  '/api/auth',
+  require('./routes/auth')
+);
+
+
+app.use(
+  '/api/payments',
+  require('./routes/payments')
+);
+
+
+app.use(
+  '/api/artworks',
+  require('./routes/artworks')
+);
+
+
+app.use(
+  '/api/artists',
+  require('./routes/artists')
+);
+
+
+
+
+
+/**
+ * Error handlers
+ * (bikorwa nyuma ya routes)
+ */
 
 app.use(notFound);
 
-/* ============================================================
-   ERROR HANDLER
-============================================================ */
-
 app.use(errorHandler);
 
-/* ============================================================
-   SERVER
-============================================================ */
 
-const PORT = process.env.PORT || 4000;
 
-app.listen(PORT, () => {
-  console.log(
-    `WorldArts backend running on port ${PORT}`
-  );
 
-  console.log(
-    `Environment: ${
-      process.env.NODE_ENV || "development"
-    }`
-  );
+
+/**
+ * Server start
+ */
+
+const PORT =
+  process.env.PORT || 4000;
+
+
+
+app.listen(PORT,()=>{
 
   console.log(
-    `Pi API: ${
-      process.env.PI_API_BASE_URL ||
-      "https://api.minepi.com/v2"
-    }`
+    `WorldArts Backend running on port ${PORT}`
   );
+
 });
-
-module.exports = app;
