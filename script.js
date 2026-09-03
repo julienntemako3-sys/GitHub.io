@@ -1,4 +1,4 @@
-/* ============================================================
+[04/09 à 00:46] ntemakojulien138@gmzil.co: /* ============================================================
    WorldArts — script.js
    Version corrigée et sécurisée
    Gère :
@@ -13,6 +13,7 @@
    - formulaire de contact
    - animations au scroll
    - restauration de session
+   - chargement de la galerie
    ============================================================ */
 
 (function () {
@@ -37,6 +38,14 @@
   let piUser = null;
   let currentLang =
     localStorage.getItem("worldarts_lang") || "fr";
+
+  /*
+   * Empêche d'initialiser Pi.init() plusieurs fois de suite.
+   * Réinitialiser le SDK juste avant authenticate() est ce qui
+   * provoque l'erreur "Failed to check previous consent scopes".
+   */
+  let piSdkReady = false;
+  let piSdkInitPromise = null;
 
 
   /* ==========================================================
@@ -97,6 +106,9 @@
 
       "gallery.eyebrow": "Sélection",
       "gallery.title": "Le mur de la galerie",
+      "gallery.loading": "Chargement des œuvres...",
+      "gallery.empty": "Aucune œuvre disponible pour le moment.",
+      "gallery.error": "Impossible de charger la galerie. Réessayez plus tard.",
 
       "artists.eyebrow": "Communauté",
       "artists.title": "Artistes à l'honneur",
@@ -158,7 +170,16 @@
       "modal.payment.title": "Confirmer le paiement",
       "modal.payment.text":
         "Cette œuvre sera payée directement via le Pi SDK. Aucune autre devise n'est acceptée.",
-      "modal.payment.action": "Payer avec Pi"
+      "modal.payment.action": "Payer avec Pi",
+
+      "pi.error.notInBrowser":
+        "Ouvrez WorldArts dans le Pi Browser pour continuer.",
+      "pi.error.network":
+        "Connexion Pi impossible : problème de réseau. Vérifiez votre connexion et réessayez.",
+      "pi.error.cancelled":
+        "Connexion Pi annulée.",
+      "pi.error.generic":
+        "Connexion Pi impossible pour le moment. Réessayez dans un instant."
     },
 
     en: {
@@ -201,6 +222,9 @@
 
       "gallery.eyebrow": "Selection",
       "gallery.title": "The gallery wall",
+      "gallery.loading": "Loading artworks...",
+      "gallery.empty": "No artworks available right now.",
+      "gallery.error": "Could not load the gallery. Please try again later.",
 
       "artists.eyebrow": "Community",
       "artists.title": "Featured artists",
@@ -255,7 +279,16 @@
       "modal.payment.title": "Confirm payment",
       "modal.payment.text":
         "This artwork will be paid for directly via the Pi SDK. No other currency is accepted.",
-      "modal.payment.action": "Pay with Pi"
+      "modal.payment.action": "Pay with Pi",
+
+      "pi.error.notInBrowser":
+        "Open WorldArts in the Pi Browser to continue.",
+      "pi.error.network":
+        "Pi connection failed: network issue. Check your connection and try again.",
+      "pi.error.cancelled":
+        "Pi connection cancelled.",
+      "pi.error.generic":
+        "Pi connection failed for now. Please try again shortly."
     },
 
     rn: {
@@ -329,6 +362,9 @@
       "gallery.eyebrow": "Amahitamwo",
       "gallery.title":
         "Uruzitiro rw'ivyerekanwa",
+      "gallery.loading": "Ivyerekanwa biriko biratangurwa...",
+      "gallery.empty": "Nta gikorwa kiriho ubu.",
+      "gallery.error": "Ivyerekanwa ntibishoboye gutangurwa. Gerageza vuba.",
 
       "artists.eyebrow": "Umuryango",
       "artists.title":
@@ -432,7 +468,16 @@
         "Iki gikorwa kizishurwa biciye muri Pi SDK. Nta yindi mafaranga yemewe.",
 
       "modal.payment.action":
-        "Ishura na Pi"
+        "Ishura na Pi",
+
+      "pi.error.notInBrowser":
+        "Fungura WorldArts muri Pi Browser kugira ubandanye.",
+      "pi.error.network":
+        "Kwinjira na Pi ntibishoboka: ikibazo c'urusobe rw'itumatumanako. Raba internet yawe hanyuma ugerageze nanone.",
+      "pi.error.cancelled":
+        "Kwinjira na Pi vyahagaritswe.",
+      "pi.error.generic":
+        "Kwinjira na Pi ntibishoboka ubu. Gerageza nanone mu kanya."
     },
 
     sw: {
@@ -503,6 +548,9 @@
 
       "gallery.title":
         "Ukuta wa ghala",
+      "gallery.loading": "Inapakia kazi za sanaa...",
+      "gallery.empty": "Hakuna kazi za sanaa kwa sasa.",
+      "gallery.error": "Imeshindikana kupakia ghala. Jaribu tena baadaye.",
 
       "artists.eyebrow":
         "Jamii",
@@ -532,6 +580,8 @@
         "Alfajiri juu ya Ziwa Tanganyika",
 
       "payment.card.artist":
+        "na Amara K.",
+[04/09 à 00:48] ntemakojulien138@gmzil.co: "payment.card.artist":
         "na Amara K.",
 
       "payment.card.buy":
@@ -610,7 +660,16 @@
         "Kazi hii italipwa moja kwa moja kupitia Pi SDK. Hakuna sarafu nyingine inayokubalika.",
 
       "modal.payment.action":
-        "Lipa kwa Pi"
+        "Lipa kwa Pi",
+
+      "pi.error.notInBrowser":
+        "Fungua WorldArts kwenye Pi Browser ili kuendelea.",
+      "pi.error.network":
+        "Imeshindikana kuungana na Pi: tatizo la mtandao. Angalia muunganisho wako na ujaribu tena.",
+      "pi.error.cancelled":
+        "Muunganisho wa Pi umeghairiwa.",
+      "pi.error.generic":
+        "Imeshindikana kuungana na Pi kwa sasa. Jaribu tena baadaye kidogo."
     },
 
     ar: {
@@ -681,6 +740,9 @@
 
       "gallery.title":
         "جدار المعرض",
+      "gallery.loading": "جارٍ تحميل الأعمال...",
+      "gallery.empty": "لا توجد أعمال متاحة حالياً.",
+      "gallery.error": "تعذر تحميل المعرض. حاول مرة أخرى لاحقاً.",
 
       "artists.eyebrow":
         "المجتمع",
@@ -788,7 +850,16 @@
         "سيُدفع ثمن هذا العمل مباشرة عبر Pi SDK. لا تُقبل أي عملة أخرى.",
 
       "modal.payment.action":
-        "ادفع عبر Pi"
+        "ادفع عبر Pi",
+
+      "pi.error.notInBrowser":
+        "افتح WorldArts في متصفح Pi Browser للمتابعة.",
+      "pi.error.network":
+        "تعذر الاتصال بـ Pi: مشكلة في الشبكة. تحقق من اتصالك وحاول مرة أخرى.",
+      "pi.error.cancelled":
+        "تم إلغاء الاتصال بـ Pi.",
+      "pi.error.generic":
+        "تعذر الاتصال بـ Pi حالياً. حاول مرة أخرى بعد قليل."
     },
 
     zh: {
@@ -859,6 +930,9 @@
 
       "gallery.title":
         "画廊墙",
+      "gallery.loading": "正在加载作品...",
+      "gallery.empty": "目前没有可用的作品。",
+      "gallery.error": "无法加载画廊，请稍后再试。",
 
       "artists.eyebrow":
         "社区",
@@ -966,7 +1040,16 @@
         "此作品将直接通过 Pi SDK 支付。不接受任何其他货币。",
 
       "modal.payment.action":
-        "使用 Pi 支付"
+        "使用 Pi 支付",
+
+      "pi.error.notInBrowser":
+        "请在 Pi Browser 中打开 WorldArts 以继续。",
+      "pi.error.network":
+        "无法连接 Pi：网络问题。请检查您的网络连接并重试。",
+      "pi.error.cancelled":
+        "已取消 Pi 连接。",
+      "pi.error.generic":
+        "暂时无法连接 Pi，请稍后重试。"
     }
   };
 
@@ -1032,12 +1115,23 @@
     }
 
     /*
-     * Pi SDK doit être initialisé après le chargement de la page.
+     * Pi SDK doit être initialisé une seule fois après le
+     * chargement de la page. Ne plus jamais rappeler
+     * initPiSdk()/Pi.init() ensuite dans le reste du script.
      */
     try {
       initPiSdk();
     } catch (error) {
       console.error("Pi SDK initialization error:", error);
+    }
+
+    /*
+     * Chargement de la galerie (œuvres) au démarrage.
+     */
+    try {
+      loadGallery();
+    } catch (error) {
+      console.error("Gallery loading error:", error);
     }
 
   });
@@ -1066,8 +1160,7 @@
 
       const current =
         document.body.getAttribute("data-theme");
-
-      const next =
+[04/09 à 00:50] ntemakojulien138@gmzil.co: const next =
         current === "dark" ? "light" : "dark";
 
       document.body.setAttribute(
@@ -1466,6 +1559,16 @@
         "modalConnectBtn"
       );
 
+    /*
+     * Bouton "Se connecter avec Pi" du panneau Marketplace
+     * (id="piPanelConnectBtn" dans index.html). Il existait
+     * dans le HTML mais n'était relié à aucune action.
+     */
+    const piPanelConnectBtn =
+      document.getElementById(
+        "piPanelConnectBtn"
+      );
+
 
     if (piConnectBtn) {
       piConnectBtn.addEventListener(
@@ -1477,6 +1580,14 @@
 
     if (heroConnectBtn) {
       heroConnectBtn.addEventListener(
+        "click",
+        openLogin
+      );
+    }
+
+
+    if (piPanelConnectBtn) {
+      piPanelConnectBtn.addEventListener(
         "click",
         openLogin
       );
@@ -1546,7 +1657,19 @@
      11. PI SDK
      ========================================================== */
 
+  /*
+   * initPiSdk() ne doit s'exécuter qu'une seule fois.
+   * Si le SDK est déjà prêt, on retourne immédiatement true
+   * sans jamais rappeler window.Pi.init() une seconde fois :
+   * c'est ce double appel (un au chargement de la page, un
+   * juste avant authenticate()) qui provoquait l'erreur
+   * "Failed to check previous consent scopes".
+   */
   function initPiSdk() {
+
+    if (piSdkReady) {
+      return true;
+    }
 
     if (typeof window.Pi === "undefined") {
 
@@ -1564,6 +1687,8 @@
         version: "2.0",
         sandbox: PI_SANDBOX
       });
+
+      piSdkReady = true;
 
       console.log(
         "Pi SDK initialisé.",
@@ -1586,6 +1711,50 @@
   }
 
 
+  /*
+   * Petite fonction utilitaire pour patienter (utilisée par
+   * la logique de nouvelle tentative ci-dessous).
+   */
+  function wait(ms) {
+    return new Promise(function (resolve) {
+      setTimeout(resolve, ms);
+    });
+  }
+
+
+  /*
+   * Classe une erreur Pi selon son message pour choisir le
+   * bon texte à afficher à l'utilisateur (réseau, annulation,
+   * navigateur incorrect, ou générique).
+   */
+  function classifyPiError(error) {
+
+    const message =
+      (error && error.message
+        ? String(error.message)
+        : ""
+      ).toLowerCase();
+
+    if (
+      message.indexOf("cancel") !== -1 ||
+      message.indexOf("annul") !== -1
+    ) {
+[04/09 à 00:51] ntemakojulien138@gmzil.co: return "cancelled";
+    }
+
+    if (
+      message.indexOf("network") !== -1 ||
+      message.indexOf("consent scopes") !== -1 ||
+      message.indexOf("fetch") !== -1 ||
+      message.indexOf("failed to check") !== -1
+    ) {
+      return "network";
+    }
+
+    return "generic";
+  }
+
+
   /* ==========================================================
      12. PI LOGIN
      ========================================================== */
@@ -1597,11 +1766,16 @@
         "modalConnectBtn"
       );
 
+    const dict =
+      translations[currentLang] ||
+      translations.fr;
+
 
     if (typeof window.Pi === "undefined") {
 
       alert(
-        "Ouvrez WorldArts dans le Pi Browser pour vous connecter avec Pi."
+        dict["pi.error.notInBrowser"] ||
+          "Ouvrez WorldArts dans le Pi Browser pour vous connecter avec Pi."
       );
 
       return;
@@ -1615,174 +1789,473 @@
     }
 
 
-    try {
+    /*
+     * On s'assure que le SDK est prêt, mais SANS jamais
+     * appeler Pi.init() une seconde fois s'il l'est déjà
+     * (voir initPiSdk() ci-dessus).
+     */
+    const sdkOk = initPiSdk();
 
-      /*
-       * On initialise Pi avant authenticate().
-       */
-      initPiSdk();
-
-
-      const scopes = [
-        "username",
-        "payments"
-      ];
-
-
-      const auth =
-        await window.Pi.authenticate(
-          scopes,
-          onIncompletePaymentFound
-        );
-
-
-      if (
-        !auth ||
-        !auth.user ||
-        !auth.accessToken
-      ) {
-
-        throw new Error(
-          "Les données d'authentification Pi sont incomplètes."
-        );
-      }
-
-
-      console.log(
-        "Pi authentication successful:",
-        auth.user
-      );
-
-
-      /*
-       * Envoi du accessToken au backend Render.
-       */
-      const response =
-        await fetch(
-          API_URL +
-            "/api/auth/pi-login",
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json"
-            },
-
-            body: JSON.stringify({
-              accessToken:
-                auth.accessToken
-            })
-          }
-        );
-
-
-      let data = null;
-
-
-      try {
-        data =
-          await response.json();
-      } catch (jsonError) {
-
-        throw new Error(
-          "Le serveur WorldArts a retourné une réponse invalide."
-        );
-      }
-
-
-      if (!response.ok) {
-
-        throw new Error(
-          data &&
-          data.error
-            ? data.error
-            : "Échec de l'authentification WorldArts."
-        );
-      }
-
-
-      if (
-        !data.token ||
-        !data.user
-      ) {
-
-        throw new Error(
-          "Le backend WorldArts n'a pas retourné de session valide."
-        );
-      }
-
-
-      /*
-       * Session WorldArts.
-       */
-      piUser = data.user;
-
-
-      localStorage.setItem(
-        "worldarts_token",
-        data.token
-      );
-
-
-      localStorage.setItem(
-        "worldarts_user",
-        JSON.stringify(data.user)
-      );
-
-
-      updateLoginButton();
-
-
-      closeModal("loginModal");
-
+    if (!sdkOk) {
 
       alert(
-        "Bienvenue @" +
-          (piUser.username || "Pi User") +
-          " sur WorldArts !"
+        dict["pi.error.notInBrowser"] ||
+          "Ouvrez WorldArts dans le Pi Browser pour vous connecter avec Pi."
       );
-
-
-      console.log(
-        "WorldArts authentication successful:",
-        data.user
-      );
-
-
-    } catch (error) {
-
-      console.error(
-        "Pi authentication error:",
-        error
-      );
-
-
-      alert(
-        "Connexion Pi impossible : " +
-          (
-            error &&
-            error.message
-              ? error.message
-              : "Erreur inconnue."
-          )
-      );
-
-
-    } finally {
 
       if (button) {
-
         button.disabled = false;
-
-        const dict =
-          translations[currentLang] ||
-          translations.fr;
-
         button.textContent =
           dict["modal.login.action"] ||
           "Continuer avec Pi";
       }
+
+      return;
+    }
+
+
+    const scopes = [
+      "username",
+      "payments"
+    ];
+
+
+    /*
+     * Jusqu'à 2 tentatives : la première tentative échoue
+     * parfois avec "Failed to check previous consent scopes"
+     * simplement à cause d'un réseau lent ; on retente une
+     * fois avant d'afficher une erreur à l'utilisateur.
+     */
+    const maxAttempts = 2;
+    let lastError = null;
+
+    for (
+      let attempt = 1;
+      attempt <= maxAttempts;
+      attempt++
+    ) {
+
+      try {
+
+        const auth =
+          await window.Pi.authenticate(
+            scopes,
+            onIncompletePaymentFound
+          );
+
+
+        if (
+          !auth ||
+          !auth.user ||
+          !auth.accessToken
+        ) {
+
+          throw new Error(
+            "Les données d'authentification Pi sont incomplètes."
+          );
+        }
+
+
+        console.log(
+          "Pi authentication successful:",
+          auth.user
+        );
+
+
+        /*
+         * Envoi du accessToken au backend Render.
+         */
+        const response =
+          await fetch(
+            API_URL +
+              "/api/auth/pi-login",
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
+
+              body: JSON.stringify({
+                accessToken:
+                  auth.accessToken
+              })
+            }
+          );
+
+
+        let data = null;
+
+
+        try {
+          data =
+            await response.json();
+        } catch (jsonError) {
+
+          throw new Error(
+            "Le serveur WorldArts a retourné une réponse invalide."
+          );
+        }
+
+
+        if (!response.ok) {
+
+          throw new Error(
+            data &&
+            data.error
+              ? data.error
+              : "Échec de l'authentification WorldArts."
+          );
+        }
+
+
+        if (
+          !data.token ||
+          !data.user
+        ) {
+
+          throw new Error(
+            "Le backend WorldArts n'a pas retourné de session valide."
+          );
+        }
+
+
+        /*
+         * Session WorldArts.
+         */
+        piUser = data.user;
+
+
+        localStorage.setItem(
+          "worldarts_token",
+          data.token
+        );
+
+
+        localStorage.setItem(
+          "worldarts_user",
+          JSON.stringify(data.user)
+        );
+
+
+        updateLoginButton();
+
+        updatePiStatusPanel(
+          "Connecté avec succès en tant que @" +
+            (piUser.username || "Pi User")
+        );
+
+
+        closeModal("loginModal");
+
+
+        alert(
+          "Bienvenue @" +
+            (piUser.username || "
+[04/09 à 00:52] ntemakojulien138@gmzil.co: return "cancelled";
+    }
+
+    if (
+      message.indexOf("network") !== -1 ||
+      message.indexOf("consent scopes") !== -1 ||
+      message.indexOf("fetch") !== -1 ||
+      message.indexOf("failed to check") !== -1
+    ) {
+      return "network";
+    }
+
+    return "generic";
+  }
+
+
+  /* ==========================================================
+     12. PI LOGIN
+     ========================================================== */
+
+  async function connectWithPi() {
+
+    const button =
+      document.getElementById(
+        "modalConnectBtn"
+      );
+
+    const dict =
+      translations[currentLang] ||
+      translations.fr;
+
+
+    if (typeof window.Pi === "undefined") {
+
+      alert(
+        dict["pi.error.notInBrowser"] ||
+          "Ouvrez WorldArts dans le Pi Browser pour vous connecter avec Pi."
+      );
+
+      return;
+    }
+
+
+    if (button) {
+      button.disabled = true;
+      button.textContent =
+        "Connexion à Pi...";
+    }
+
+
+    /*
+     * On s'assure que le SDK est prêt, mais SANS jamais
+     * appeler Pi.init() une seconde fois s'il l'est déjà
+     * (voir initPiSdk() ci-dessus).
+     */
+    const sdkOk = initPiSdk();
+
+    if (!sdkOk) {
+
+      alert(
+        dict["pi.error.notInBrowser"] ||
+          "Ouvrez WorldArts dans le Pi Browser pour vous connecter avec Pi."
+      );
+
+      if (button) {
+        button.disabled = false;
+        button.textContent =
+          dict["modal.login.action"] ||
+          "Continuer avec Pi";
+      }
+
+      return;
+    }
+
+
+    const scopes = [
+      "username",
+      "payments"
+    ];
+
+
+    /*
+     * Jusqu'à 2 tentatives : la première tentative échoue
+     * parfois avec "Failed to check previous consent scopes"
+     * simplement à cause d'un réseau lent ; on retente une
+     * fois avant d'afficher une erreur à l'utilisateur.
+     */
+    const maxAttempts = 2;
+    let lastError = null;
+
+    for (
+      let attempt = 1;
+      attempt <= maxAttempts;
+      attempt++
+    ) {
+
+      try {
+
+        const auth =
+          await window.Pi.authenticate(
+            scopes,
+            onIncompletePaymentFound
+          );
+
+
+        if (
+          !auth ||
+          !auth.user ||
+          !auth.accessToken
+        ) {
+
+          throw new Error(
+            "Les données d'authentification Pi sont incomplètes."
+          );
+        }
+
+
+        console.log(
+          "Pi authentication successful:",
+          auth.user
+        );
+
+
+        /*
+         * Envoi du accessToken au backend Render.
+         */
+        const response =
+          await fetch(
+            API_URL +
+              "/api/auth/pi-login",
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
+
+              body: JSON.stringify({
+                accessToken:
+                  auth.accessToken
+              })
+            }
+          );
+
+
+        let data = null;
+
+
+        try {
+          data =
+            await response.json();
+        } catch (jsonError) {
+
+          throw new Error(
+            "Le serveur WorldArts a retourné une réponse invalide."
+          );
+        }
+
+
+        if (!response.ok) {
+
+          throw new Error(
+            data &&
+            data.error
+              ? data.error
+              : "Échec de l'authentification WorldArts."
+          );
+        }
+
+
+        if (
+          !data.token ||
+          !data.user
+        ) {
+
+          throw new Error(
+            "Le backend WorldArts n'a pas retourné de session valide."
+          );
+        }
+
+
+        /*
+         * Session WorldArts.
+         */
+        piUser = data.user;
+
+
+        localStorage.setItem(
+          "worldarts_token",
+          data.token
+        );
+
+
+        localStorage.setItem(
+          "worldarts_user",
+          JSON.stringify(data.user)
+        );
+
+
+        updateLoginButton();
+
+        updatePiStatusPanel(
+          "Connecté avec succès en tant que @" +
+            (piUser.username || "Pi User")
+        );
+
+
+        closeModal("loginModal");
+
+
+        alert(
+          "Bienvenue @" +
+            (piUser.username || "Pi User") +
+            " sur WorldArts !"
+        );
+
+
+        console.log(
+          "WorldArts authentication successful:",
+          data.user
+        );
+
+        lastError = null;
+        break;
+
+
+      } catch (error) {
+
+        lastError = error;
+
+        console.error(
+          "Pi authentication error (attempt " +
+            attempt +
+            "):",
+          error
+        );
+
+        const kind = classifyPiError(error);
+
+        /*
+         * On ne retente que pour les erreurs réseau, et
+         * seulement s'il reste des tentatives.
+         */
+        if (
+          kind === "network" &&
+          attempt < maxAttempts
+        ) {
+
+          if (button) {
+            button.textContent =
+              "Nouvelle tentative...";
+          }
+
+          await wait(1200);
+          continue;
+        }
+
+        break;
+      }
+    }
+
+
+    if (lastError) {
+
+      const kind = classifyPiError(lastError);
+
+      const messageKey =
+        kind === "cancelled"
+          ? "pi.error.cancelled"
+          : kind === "network"
+          ? "pi.error.network"
+          : "pi.error.generic";
+
+      alert(
+        dict[messageKey] ||
+          "Connexion Pi impossible : " +
+            (
+              lastError &&
+              lastError.message
+                ? lastError.message
+                : "Erreur inconnue."
+            )
+      );
+
+      updatePiStatusPanel(
+        "Échec de connexion : " +
+          (
+            dict[messageKey] ||
+            (lastError && lastError.message) ||
+            "erreur inconnue"
+          )
+      );
+    }
+
+
+    if (button) {
+
+      button.disabled = false;
+
+      button.textContent =
+        dict["modal.login.action"] ||
+        "Continuer avec Pi";
     }
   }
 
@@ -1798,27 +2271,80 @@
         "piConnectBtn"
       );
 
-    if (!button) return;
+    if (button) {
+
+      if (
+        piUser &&
+        piUser.username
+      ) {
+
+        button.textContent =
+          "@" + piUser.username;
+
+        button.classList.add(
+          "connected"
+        );
+
+      } else {
+
+        button.classList.remove(
+          "connected"
+        );
+
+      }
+    }
+
+    /*
+     * Le panneau Marketplace (#piStatus / #piStatusText / #piLog
+     * dans index.html) affiche l'état de connexion Pi. Il existait
+     * dans le HTML mais n'était jamais mis à jour par le script.
+     */
+    updatePiStatusPanel();
+  }
 
 
-    if (
-      piUser &&
-      piUser.username
-    ) {
+  /*
+   * Met à jour le panneau de statut Pi du bloc Marketplace et,
+   * si un message est fourni, l'ajoute au journal (#piLog).
+   */
+  function updatePiStatusPanel(logMessage) {
 
-      button.textContent =
-        "@" + piUser.username;
+    const statusWrap =
+      document.getElementById("piStatus");
 
-      button.classList.add(
-        "connected"
+    const statusText =
+      document.getElementById("piStatusText");
+
+    const log =
+      document.getElementById("piLog");
+
+
+    if (statusText) {
+
+      statusText.textContent =
+        piUser && piUser.username
+          ? "@" + piUser.username
+          : "Non connecté";
+    }
+
+    if (statusWrap) {
+
+      statusWrap.classList.toggle(
+        "connected",
+        !!piUser
       );
+    }
 
-    } else {
+    if (log && logMessage) {
 
-      button.classList.remove(
-        "connected"
-      );
+      const line =
+        document.createElement("div");
 
+      line.textContent = logMessage;
+
+      log.appendChild(line);
+
+      log.scrollTop = log.scrollHeight;
     }
   }
 
@@ -1889,6 +2415,11 @@
 
     try {
 
+      /*
+       * Le SDK est déjà initialisé une seule fois au
+       * chargement de la page ; initPiSdk() ici ne fait
+       * que vérifier qu'il l'est bien, sans le réinitialiser.
+       */
       initPiSdk();
 
 
@@ -2002,8 +2533,7 @@
               if (!response.ok) {
 
                 let errorData = {};
-
-                try {
+[04/09 à 00:54] ntemakojulien138@gmzil.co: try {
                   errorData =
                     await response.json();
                 } catch (_) {}
@@ -2405,6 +2935,164 @@
 
       }
     );
+  }
+
+
+  /* ==========================================================
+     18. CHARGEMENT DE LA GALERIE
+     ========================================================== */
+
+  /*
+   * Charge les œuvres depuis le backend et les affiche dans
+   * le conteneur de la galerie. Dans index.html, ce conteneur
+   * est : <div class="artwork-grid" data-artworks
+   * aria-live="polite">...</div> à l'intérieur de #gallery.
+   * On garde aussi quelques alternatives de secours au cas où
+   * le HTML évoluerait plus tard.
+   */
+  function findGalleryContainer() {
+
+    return (
+      document.querySelector("#gallery [data-artworks]") ||
+      document.querySelector("[data-artworks]") ||
+      document.querySelector("#gallery .artwork-grid") ||
+      document.querySelector(".artwork-grid") ||
+      document.getElementById("galleryGrid") ||
+      document.querySelector(".gallery-grid")
+    );
+  }
+
+
+  function galleryDict() {
+    return (
+      translations[currentLang] || translations.fr
+    );
+  }
+
+
+  function renderGalleryMessage(container, text) {
+
+    container.innerHTML = "";
+
+    /*
+     * On réutilise la classe "loading-state" déjà présente dans
+     * index.html (le <p class="loading-state">Chargement des
+     * œuvres...</p> initial), pour rester cohérent avec le CSS
+     * existant plutôt que d'introduire une classe inconnue.
+     */
+    const p = document.createElement("p");
+    p.className = "loading-state";
+    p.textContent = text;
+
+    container.appendChild(p);
+  }
+
+
+  function renderGalleryItems(container, artworks) {
+
+    container.innerHTML = "";
+
+    artworks.forEach(function (artwork) {
+
+      /*
+       * "artwork-card" pour rester dans la même convention de
+       * nommage que le conteneur "artwork-grid" de index.html.
+       */
+      const card = document.createElement("div");
+      card.className = "artwork-card";
+
+      const img = document.createElement("img");
+      img.src = artwork.imageUrl || artwork.image || "";
+      img.alt = artwork.title || "";
+      img.loading = "lazy";
+
+      const title = document.createElement("h3");
+      title.textContent = artwork.title || "";
+
+      const artist = document.createElement("p");
+      artist.textContent = artwork.artistName || artwork.artist || "";
+
+      card.appendChild(img);
+      card.appendChild(title);
+      card.appendChild(artist);
+
+      container.appendChild(card);
+    });
+  }
+
+
+  async function loadGallery() {
+
+    const container = findGalleryContainer();
+
+    /*
+     * Si le conteneur n'existe pas dans le HTML actuel, on ne
+     * fait rien : ceci évite de casser quoi que ce soit. Il
+     * suffit d'ajouter un id="galleryGrid" au conteneur de la
+     * galerie dans index.html pour activer ce chargement.
+     */
+    if (!container) {
+
+      console.warn(
+        "Conteneur de galerie introuvable (id 'galleryGrid' attendu)."
+      );
+
+      return;
+    }
+
+    const dict = galleryDict();
+
+    renderGalleryMessage(
+      container,
+      dict["gallery.loading"] || "Chargement des œuvres..."
+    );
+
+    try {
+
+      const response = await fetch(
+        API_URL + "/api/artworks"
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "Le serveur a répondu avec une erreur."
+        );
+      }
+
+      const data = await response.json();
+
+      const artworks = Array.isArray(data)
+        ? data
+        : Array.isArray(data.artworks)
+        ? data.artworks
+        : [];
+
+      if (!artworks.length) {
+
+        renderGalleryMessage(
+          container,
+          dict["gallery.empty"] ||
+            "Aucune œuvre disponible pour le moment."
+        );
+
+        return;
+      }
+
+      renderGalleryItems(container, artworks);
+
+    } catch (error) {
+
+      console.error(
+        "Gallery loading error:",
+        error
+      );
+
+      renderGalleryMessage(
+        container,
+        dict["gallery.error"] ||
+          "Impossible de charger la galerie. Réessayez plus tard."
+      );
+    }
   }
 
 })();
