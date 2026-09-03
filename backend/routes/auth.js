@@ -1,163 +1,101 @@
-
 // routes/auth.js
-// Pi Network authentication + WorldArts JWT
-
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const { piApi } = require('../config/piClient');
-const { users, uuidv4 } = require('../config/store');
-const { requireAuth } = require('../middleware/auth');
+const express = require("express");
+const axios = require("axios");
 
 const router = express.Router();
 
+const PI_API_BASE_URL =
+  process.env.PI_API_BASE_URL || "https://api.minepi.com/v2";
 
+/*
+  POST /api/auth/pi
 
-/**
- * POST /api/auth/pi-login
- * Kwemeza Pi accessToken no gukora JWT ya WorldArts
- */
-router.post('/pi-login', async (req,res)=>{
+  Frontend sends:
+  {
+    accessToken,
+    uid,
+    username
+  }
 
+  IMPORTANT:
+  We DO NOT trust uid/username from frontend.
+  We verify accessToken directly with Pi /v2/me.
+*/
+router.post("/pi", async (req, res) => {
   try {
+    const { accessToken } = req.body || {};
 
-    const { accessToken } = req.body;
-
-
-    if(!accessToken){
-
+    if (!accessToken || typeof accessToken !== "string") {
       return res.status(400).json({
-        error:'Pi accessToken irakenewe.'
+        success: false,
+        message: "Pi access token manquant."
       });
-
     }
 
-
-    const response = await piApi.get('/me',{
-
-      headers:{
-        Authorization:`Bearer ${accessToken}`
+    const piResponse = await axios.get(
+      `${PI_API_BASE_URL}/me`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/json"
+        },
+        timeout: 15000
       }
+    );
 
-    });
+    const piUser = piResponse.data;
 
-
-    const piUser = response.data;
-
-
-
-    let user = Array.from(users.values())
-      .find(u => u.uid === piUser.uid);
-
-
-
-    if(!user){
-
-      const id = uuidv4();
-
-
-      user = {
-
-        id,
-
-        uid:piUser.uid,
-
-        username:piUser.username || '',
-
-        roles:['user'],
-
-        createdAt:new Date().toISOString()
-
-      };
-
-
-      users.set(id,user);
-
+    if (!piUser || !piUser.uid) {
+      return res.status(401).json({
+        success: false,
+        message: "Réponse Pi invalide."
+      });
     }
 
-
-
-    const token = jwt.sign(
-
-      {
-        id:user.id,
-        uid:user.uid,
-        username:user.username,
-        roles:user.roles
-      },
-
-      process.env.JWT_SECRET,
-
-      {
-        expiresIn:'7d'
+    return res.status(200).json({
+      success: true,
+      message: "Authentification Pi réussie.",
+      user: {
+        uid: piUser.uid,
+        username: piUser.username || null
       }
-
-    );
-
-
-
-    res.json({
-
-      token,
-
-      user
-
     });
 
+  } catch (error) {
+    const status = error.response?.status || 500;
+    const piData = error.response?.data;
 
-
-  } catch(error){
-
-    console.error(
-      '[Pi Login]',
-      error.response?.data || error.message
-    );
-
-
-    res.status(401).json({
-
-      error:'Pi authentication yanse.'
-
+    console.error("Pi authentication error:", {
+      status,
+      data: piData,
+      message: error.message
     });
 
+    if (status === 401) {
+      return res.status(401).json({
+        success: false,
+        message: "Le token Pi est invalide ou expiré."
+      });
+    }
+
+    return res.status(502).json({
+      success: false,
+      message: "Le serveur Pi n'a pas pu vérifier votre authentification."
+    });
   }
-
 });
 
-
-
-
-
-/**
- * GET /api/auth/me
- */
-router.get('/me', requireAuth,(req,res)=>{
-
-
-  const user = users.get(req.user.id);
-
-
-
-  if(!user){
-
-    return res.status(404).json({
-
-      error:'User ntabonetse.'
-
-    });
-
-  }
-
-
-
+/*
+  Simple backend status endpoint.
+  Useful for testing:
+  GET /api/auth/status
+*/
+router.get("/status", (req, res) => {
   res.json({
-
-    user
-
+    success: true,
+    service: "WorldArts Pi Authentication",
+    status: "ready"
   });
-
-
 });
-
-
 
 module.exports = router;
