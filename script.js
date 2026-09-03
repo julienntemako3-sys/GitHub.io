@@ -1591,12 +1591,178 @@
      ========================================================== */
 
   async function connectWithPi() {
+  if (!initPiSdk()) {
+    notify(
+      "Le Pi SDK est disponible uniquement dans Pi Browser.",
+      "error"
+    );
+    return;
+  }
 
-    const button =
-      document.getElementById(
-        "modalConnectBtn"
+  try {
+    notify("Connexion à Pi en cours...");
+
+    /*
+      1. Authenticate with Pi
+    */
+    const auth = await Pi.authenticate(
+      ["username", "payments"],
+      onIncompletePaymentFound
+    );
+
+    /*
+      2. Validate Pi response
+    */
+    if (
+      !auth ||
+      !auth.user ||
+      !auth.user.uid ||
+      !auth.accessToken
+    ) {
+      throw new Error(
+        "Pi n'a pas retourné les informations d'authentification nécessaires."
+      );
+    }
+
+    /*
+      3. Store Pi identity/token
+    */
+    piUser = auth.user;
+    piAccessToken = auth.accessToken;
+
+    /*
+      4. Verify authentication with WorldArts backend
+    */
+    if (!API_BASE) {
+      throw new Error(
+        "Backend WorldArts non configuré."
+      );
+    }
+
+    const authResponse = await fetch(
+      API_BASE + "/auth/pi",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+
+        body: JSON.stringify({
+          accessToken: piAccessToken
+        })
+      }
+    );
+
+    /*
+      5. Read backend response safely
+    */
+    const rawText = await authResponse.text();
+
+    let authData = {};
+
+    try {
+      authData = rawText
+        ? JSON.parse(rawText)
+        : {};
+    } catch (jsonError) {
+      console.error(
+        "Backend returned non-JSON:",
+        rawText
       );
 
+      throw new Error(
+        "Le serveur WorldArts a retourné une réponse invalide."
+      );
+    }
+
+    /*
+      6. Backend error
+    */
+    if (
+      !authResponse.ok ||
+      !authData.success
+    ) {
+      throw new Error(
+        authData.message ||
+        `Erreur serveur (${authResponse.status}).`
+      );
+    }
+
+    /*
+      7. Use verified identity returned by backend
+    */
+    if (authData.user) {
+      piUser = {
+        ...piUser,
+        uid:
+          authData.user.uid ||
+          piUser.uid,
+
+        username:
+          authData.user.username ||
+          piUser.username
+      };
+    }
+
+    /*
+      8. Update connection buttons
+    */
+    const buttons = [
+      $("piConnectBtn"),
+      $("heroConnectBtn")
+    ].filter(Boolean);
+
+    buttons.forEach((btn) => {
+      btn.textContent =
+        "@" +
+        (piUser.username || "Pi");
+
+      btn.dataset.connected = "true";
+      btn.classList.add("connected");
+    });
+
+    /*
+      9. Close login modal
+    */
+    closeModal("loginModal");
+
+    /*
+      10. Success
+    */
+    notify(
+      "Connexion Pi réussie."
+    );
+
+    console.log(
+      "WorldArts Pi user authenticated:",
+      {
+        uid: piUser.uid,
+        username: piUser.username
+      }
+    );
+
+  } catch (error) {
+
+    /*
+      Never expose the access token.
+    */
+    console.error(
+      "Échec authentification Pi:",
+      error
+    );
+
+    piUser = null;
+    piAccessToken = null;
+
+    notify(
+      error.message ||
+      "Connexion Pi impossible.",
+      "error"
+    );
+  }
+}
 
     if (typeof window.Pi === "undefined") {
 
