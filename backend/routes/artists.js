@@ -1,1 +1,24 @@
 
+{
+  "name": "worldarts-backend",
+  "version": "1.1.0",
+  "description": "Backend Node.js/Express pour WorldArts avec intégration Pi Network",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "engines": { "node": ">=18.0.0" },
+  "dependencies": {
+    "axios": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": { "nodemon": "^3.1.4" }
+}
