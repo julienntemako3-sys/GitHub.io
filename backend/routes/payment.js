@@ -1,632 +1,175 @@
+const express = require('express');
+const axios = require('axios');
+const { verifyPiAccessToken } = require('./auth');
 
-// routes/payments.js
-// WorldArts — Pi Network Payment Routes
-
-const express = require("express");
 const router = express.Router();
+const PI_API_BASE_URL = (process.env.PI_API_BASE_URL || 'https://api.minepi.com').replace(/\/$/, '');
+const PI_API_KEY = process.env.PI_API_KEY;
 
-const { payments } = require("../config/store");
-const { requireAuth, optionalAuth } = require("../middleware/auth");
+function requireApiKey(res) {
+  if (!PI_API_KEY) {
+    res.status(500).json({ success: false, message: 'PI_API_KEY is not configured on the server.' });
+    return false;
+  }
+  return true;
+}
 
-const PI_API_BASE_URL = String(
-  process.env.PI_API_BASE_URL || "https://api.minepi.com"
-).replace(/\/$/, "");
-
-const PI_API_KEY = String(process.env.PI_API_KEY || "").trim();
-
-/* =========================================================
-   PI API HELPERS
-   ========================================================= */
-
-function piHeaders() {
+function piServerHeaders() {
   return {
+    // Pi Platform payment APIs use the Server API Key in this form.
     Authorization: `Key ${PI_API_KEY}`,
-    "Content-Type": "application/json"
+    Accept: 'application/json'
   };
 }
 
-async function piRequest(url, options = {}) {
-  if (!PI_API_KEY) {
-    const error = new Error(
-      "PI_API_KEY ntisobanuwe muri environment variables."
-    );
-
-    error.status = 500;
-    throw error;
-  }
-
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...piHeaders(),
-      ...(options.headers || {})
-    }
-  });
-
-  let data = null;
-
-  try {
-    data = await response.json();
-  } catch (_) {
-    data = null;
-  }
-
-  if (!response.ok) {
-    const error = new Error(
-      data?.error ||
-      data?.message ||
-      `Pi API error ${response.status}`
-    );
-
-    error.status = response.status;
-    error.data = data;
-
-    throw error;
-  }
-
-  return data;
-}
-
-function getErrorMessage(error, fallback) {
-  return (
-    error?.data?.error ||
-    error?.data?.message ||
-    error?.message ||
-    fallback
+async function getPiPayment(paymentId) {
+  const response = await axios.get(
+    `${PI_API_BASE_URL}/v2/payments/${encodeURIComponent(paymentId)}`,
+    { headers: piServerHeaders(), timeout: 15000, validateStatus: () => true }
   );
+
+  if (response.status !== 200) {
+    const err = new Error(response.data?.error || response.data?.message || 'Impossible de récupérer le paiement Pi.');
+    err.status = response.status >= 400 && response.status < 600 ? response.status : 502;
+    throw err;
+  }
+  return response.data;
 }
 
-function paymentBelongsToUser(payment, user) {
-  if (!payment || !user) return false;
-
-  if (!payment.uid || !user.uid) {
-    return true;
+function assertPaymentBelongsToUser(payment, user) {
+  const ownerUid = payment?.Pioneer_uid || payment?.pioneer_uid || payment?.user_uid;
+  if (ownerUid && user?.uid && ownerUid !== user.uid) {
+    const err = new Error('Ce paiement Pi ne correspond pas à l’utilisateur authentifié.');
+    err.status = 403;
+    throw err;
   }
-
-  return payment.uid === user.uid;
 }
 
-/* =========================================================
-   APPROVE PAYMENT
-   POST /api/payments/approve
-   ========================================================= */
+router.post('/approve', async (req, res) => {
+  const { paymentId, accessToken } = req.body || {};
+  if (!paymentId || !accessToken) {
+    return res.status(400).json({ success: false, message: 'paymentId and accessToken are required.' });
+  }
+  if (!requireApiKey(res)) return;
 
-router.post("/approve", optionalAuth, async (req, res) => {
   try {
-    const { paymentId } = req.body || {};
+    const user = await verifyPiAccessToken(accessToken);
+    const payment = await getPiPayment(paymentId);
+    assertPaymentBelongsToUser(payment, user);
 
-    if (!paymentId || typeof paymentId !== "string") {
-      return res.status(400).json({
-        success: false,
-        error: "paymentId irakenewe."
-      });
-    }
-
-    const cleanPaymentId = paymentId.trim();
-
-    if (!cleanPaymentId) {
-      return res.status(400).json({
-        success: false,
-        error: "paymentId ntishobora kuba empty."
-      });
-    }
-
-    const paymentUrl =
-      `${PI_API_BASE_URL}/v2/payments/` +
-      `${encodeURIComponent(cleanPaymentId)}/approve`;
-
-    const piPayment = await piRequest(paymentUrl, {
-      method: "POST"
-    });
-
-    const existing = payments.get(cleanPaymentId) || {};
-
-    const payment = {
-      ...existing,
-
-      paymentId: cleanPaymentId,
-
-      uid:
-        req.user?.uid ||
-        existing.uid ||
-        null,
-
-      userId:
-        req.user?.id ||
-        existing.userId ||
-        null,
-
-      status: "approved",
-
-      piPayment,
-
-      approvedAt:
-        existing.approvedAt ||
-        new Date().toISOString(),
-
-      updatedAt: new Date().toISOString()
-    };
-
-    payments.set(cleanPaymentId, payment);
-
-    return res.status(200).json({
-      success: true,
-      payment
-    });
-
-  } catch (error) {
-    console.error(
-      "[WorldArts] Approve Payment Error:",
-      error.data || error.message
+    const response = await axios.post(
+      `${PI_API_BASE_URL}/v2/payments/${encodeURIComponent(paymentId)}/approve`,
+      null,
+      { headers: piServerHeaders(), timeout: 15000, validateStatus: () => true }
     );
 
-    return res.status(error.status || 500).json({
+    if (response.status < 200 || response.status >= 300) {
+      return res.status(response.status).json({
+        success: false,
+        message: response.data?.error || response.data?.message || 'Pi payment approval failed.'
+      });
+    }
+
+    return res.json({ success: true, payment: response.data });
+  } catch (error) {
+    console.error('Pi approve:', error.status || 502, error.response?.data || error.message);
+    return res.status(error.status || error.response?.status || 502).json({
       success: false,
-      error: getErrorMessage(
-        error,
-        "Ntivyashobotse kwemeza payment ya Pi."
-      )
+      message: error.message || error.response?.data?.error || 'Pi payment approval failed.'
     });
   }
 });
 
-/* =========================================================
-   COMPLETE PAYMENT
-   POST /api/payments/complete
-   ========================================================= */
+router.post('/complete', async (req, res) => {
+  const { paymentId, txid, accessToken } = req.body || {};
+  if (!paymentId || !txid || !accessToken) {
+    return res.status(400).json({ success: false, message: 'paymentId, txid and accessToken are required.' });
+  }
+  if (!requireApiKey(res)) return;
 
-router.post("/complete", optionalAuth, async (req, res) => {
   try {
-    const { paymentId, txid } = req.body || {};
+    const user = await verifyPiAccessToken(accessToken);
+    const payment = await getPiPayment(paymentId);
+    assertPaymentBelongsToUser(payment, user);
 
-    if (!paymentId || typeof paymentId !== "string") {
-      return res.status(400).json({
-        success: false,
-        error: "paymentId irakenewe."
-      });
+    if (payment?.status?.developer_completed === true) {
+      return res.json({ success: true, payment, alreadyCompleted: true });
     }
 
-    if (!txid || typeof txid !== "string") {
-      return res.status(400).json({
-        success: false,
-        error: "txid irakenewe."
-      });
-    }
-
-    const cleanPaymentId = paymentId.trim();
-    const cleanTxid = txid.trim();
-
-    if (!cleanPaymentId || !cleanTxid) {
-      return res.status(400).json({
-        success: false,
-        error: "paymentId na txid ntibishobora kuba empty."
-      });
-    }
-
-    const existing = payments.get(cleanPaymentId) || {};
-
-    /*
-     * Niba payment yari isanzwe yararangiye,
-     * ntidukore completion inshasha.
-     */
-    if (existing.status === "completed") {
-      return res.status(200).json({
-        success: true,
-        payment: existing,
-        alreadyCompleted: true
-      });
-    }
-
-    /*
-     * Niba hari user afise kuri request,
-     * turagenzura ko payment ari yiwe.
-     */
-    if (
-      req.user &&
-      existing.uid &&
-      !paymentBelongsToUser(existing, req.user)
-    ) {
-      return res.status(403).json({
-        success: false,
-        error: "Nta burenganzira ufise kuri iyi payment."
-      });
-    }
-
-    const paymentUrl =
-      `${PI_API_BASE_URL}/v2/payments/` +
-      `${encodeURIComponent(cleanPaymentId)}/complete`;
-
-    const piPayment = await piRequest(paymentUrl, {
-      method: "POST",
-      body: JSON.stringify({
-        txid: cleanTxid
-      })
-    });
-
-    /*
-     * Turandika completed GUSA iyo Pi API
-     * yemeje completion neza.
-     */
-    const payment = {
-      ...existing,
-
-      paymentId: cleanPaymentId,
-
-      uid:
-        req.user?.uid ||
-        existing.uid ||
-        null,
-
-      userId:
-        req.user?.id ||
-        existing.userId ||
-        null,
-
-      txid: cleanTxid,
-
-      status: "completed",
-
-      piPayment,
-
-      completedAt: new Date().toISOString(),
-
-      updatedAt: new Date().toISOString()
-    };
-
-    payments.set(cleanPaymentId, payment);
-
-    return res.status(200).json({
-      success: true,
-      payment
-    });
-
-  } catch (error) {
-    console.error(
-      "[WorldArts] Complete Payment Error:",
-      error.data || error.message
+    const response = await axios.post(
+      `${PI_API_BASE_URL}/v2/payments/${encodeURIComponent(paymentId)}/complete`,
+      { txid },
+      {
+        headers: { ...piServerHeaders(), 'Content-Type': 'application/json' },
+        timeout: 15000,
+        validateStatus: () => true
+      }
     );
 
-    return res.status(error.status || 500).json({
+    if (response.status < 200 || response.status >= 300) {
+      return res.status(response.status).json({
+        success: false,
+        message: response.data?.error || response.data?.message || 'Pi payment completion failed.'
+      });
+    }
+
+    return res.json({ success: true, payment: response.data });
+  } catch (error) {
+    console.error('Pi complete:', error.status || 502, error.response?.data || error.message);
+    return res.status(error.status || error.response?.status || 502).json({
       success: false,
-      error: getErrorMessage(
-        error,
-        "Ntivyashobotse kurangiza payment ya Pi."
-      )
+      message: error.message || error.response?.data?.error || 'Pi payment completion failed.'
     });
   }
 });
 
-/* =========================================================
-   CANCEL PAYMENT
-   POST /api/payments/cancel
-   ========================================================= */
-
-router.post("/cancel", optionalAuth, async (req, res) => {
-  try {
-    const { paymentId } = req.body || {};
-
-    if (!paymentId || typeof paymentId !== "string") {
-      return res.status(400).json({
-        success: false,
-        error: "paymentId irakenewe."
-      });
-    }
-
-    const cleanPaymentId = paymentId.trim();
-
-    if (!cleanPaymentId) {
-      return res.status(400).json({
-        success: false,
-        error: "paymentId ntishobora kuba empty."
-      });
-    }
-
-    const existing = payments.get(cleanPaymentId) || {};
-
-    if (
-      req.user &&
-      existing.uid &&
-      !paymentBelongsToUser(existing, req.user)
-    ) {
-      return res.status(403).json({
-        success: false,
-        error: "Nta burenganzira ufise kuri iyi payment."
-      });
-    }
-
-    const paymentUrl =
-      `${PI_API_BASE_URL}/v2/payments/` +
-      `${encodeURIComponent(cleanPaymentId)}/cancel`;
-
-    const piPayment = await piRequest(paymentUrl, {
-      method: "POST"
-    });
-
-    const payment = {
-      ...existing,
-
-      paymentId: cleanPaymentId,
-
-      uid:
-        req.user?.uid ||
-        existing.uid ||
-        null,
-
-      userId:
-        req.user?.id ||
-        existing.userId ||
-        null,
-
-      status: "cancelled",
-
-      piPayment,
-
-      cancelledAt: new Date().toISOString(),
-
-      updatedAt: new Date().toISOString()
-    };
-
-    payments.set(cleanPaymentId, payment);
-
-    return res.status(200).json({
-      success: true,
-      payment
-    });
-
-  } catch (error) {
-    console.error(
-      "[WorldArts] Cancel Payment Error:",
-      error.data || error.message
-    );
-
-    return res.status(error.status || 500).json({
-      success: false,
-      error: getErrorMessage(
-        error,
-        "Ntivyashobotse guhagarika payment ya Pi."
-      )
-    });
+router.post('/incomplete', async (req, res) => {
+  const { paymentId, accessToken } = req.body || {};
+  if (!paymentId || !accessToken) {
+    return res.status(400).json({ success: false, message: 'paymentId and accessToken are required.' });
   }
-});
+  if (!requireApiKey(res)) return;
 
-/* =========================================================
-   INCOMPLETE PAYMENT
-   POST /api/payments/incomplete
-   ========================================================= */
-
-router.post("/incomplete", optionalAuth, (req, res) => {
   try {
-    const { paymentId, payment } = req.body || {};
+    const user = await verifyPiAccessToken(accessToken);
+    const payment = await getPiPayment(paymentId);
+    assertPaymentBelongsToUser(payment, user);
 
-    if (!paymentId || typeof paymentId !== "string") {
-      return res.status(400).json({
+    if (payment?.status?.developer_completed === true) {
+      return res.json({ success: true, payment, alreadyCompleted: true });
+    }
+
+    const txid = payment?.transaction?.txid;
+    if (!txid) {
+      return res.status(409).json({
         success: false,
-        error: "paymentId irakenewe."
+        message: 'Le paiement est incomplet mais aucun txid n’est encore disponible.'
       });
     }
 
-    const cleanPaymentId = paymentId.trim();
+    const response = await axios.post(
+      `${PI_API_BASE_URL}/v2/payments/${encodeURIComponent(paymentId)}/complete`,
+      { txid },
+      {
+        headers: { ...piServerHeaders(), 'Content-Type': 'application/json' },
+        timeout: 15000,
+        validateStatus: () => true
+      }
+    );
 
-    if (!cleanPaymentId) {
-      return res.status(400).json({
+    if (response.status < 200 || response.status >= 300) {
+      return res.status(response.status).json({
         success: false,
-        error: "paymentId ntishobora kuba empty."
+        message: response.data?.error || response.data?.message || 'Impossible de compléter le paiement incomplet.'
       });
     }
 
-    const existing = payments.get(cleanPaymentId) || {};
-
-    const record = {
-      ...existing,
-
-      paymentId: cleanPaymentId,
-
-      uid:
-        req.user?.uid ||
-        payment?.user_uid ||
-        existing.uid ||
-        null,
-
-      userId:
-        req.user?.id ||
-        existing.userId ||
-        null,
-
-      status:
-        existing.status === "completed"
-          ? "completed"
-          : "incomplete",
-
-      piPayment:
-        payment ||
-        existing.piPayment ||
-        null,
-
-      updatedAt: new Date().toISOString()
-    };
-
-    payments.set(cleanPaymentId, record);
-
-    return res.status(200).json({
-      success: true,
-      payment: record
-    });
-
+    return res.json({ success: true, payment: response.data, completedFromIncomplete: true });
   } catch (error) {
-    console.error(
-      "[WorldArts] Incomplete Payment Error:",
-      error
-    );
-
-    return res.status(500).json({
+    console.error('Pi incomplete:', error.status || 502, error.response?.data || error.message);
+    return res.status(error.status || error.response?.status || 502).json({
       success: false,
-      error: "Ntivyashobotse kubika incomplete payment."
-    });
-  }
-});
-
-/* =========================================================
-   GET PAYMENT BY ID
-   IMPORTANT:
-   IYI ROUTE IZA INYUMA YA /history NA /incomplete
-   ========================================================= */
-
-router.get("/:id", requireAuth, (req, res) => {
-  try {
-    const paymentId = String(req.params.id || "").trim();
-
-    if (!paymentId) {
-      return res.status(400).json({
-        success: false,
-        error: "Payment ID irakenewe."
-      });
-    }
-
-    const payment = payments.get(paymentId);
-
-    if (!payment) {
-      return res.status(404).json({
-        success: false,
-        error: "Payment ntibashoboye kuyibona."
-      });
-    }
-
-    if (
-      payment.uid &&
-      req.user?.uid &&
-      payment.uid !== req.user.uid
-    ) {
-      return res.status(403).json({
-        success: false,
-        error: "Nta burenganzira ufise kuri iyi payment."
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      payment
-    });
-
-  } catch (error) {
-    console.error(
-      "[WorldArts] Get Payment Error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      error: "Ntivyashobotse kuronka payment."
-    });
-  }
-});
-
-/* =========================================================
-   PAYMENT HISTORY
-   IMPORTANT:
-   IRI ROUTE RIZA MBERE YA /:id
-   ========================================================= */
-
-router.get("/history", requireAuth, (req, res) => {
-  try {
-    const list = Array.from(payments.values())
-      .filter(payment =>
-        payment.uid === req.user.uid
-      )
-      .sort((a, b) =>
-        String(b.updatedAt || b.createdAt || "")
-          .localeCompare(
-            String(a.updatedAt || a.createdAt || "")
-          )
-      );
-
-    return res.status(200).json({
-      success: true,
-      payments: list
-    });
-
-  } catch (error) {
-    console.error(
-      "[WorldArts] Payment History Error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      error: "Ntivyashobotse kuronka payment history."
-    });
-  }
-});
-
-/* =========================================================
-   INCOMPLETE PAYMENTS
-   IMPORTANT:
-   IRI ROUTE RIZA MBERE YA /:id
-   ========================================================= */
-
-router.get("/incomplete", requireAuth, (req, res) => {
-  try {
-    const list = Array.from(payments.values())
-      .filter(payment =>
-        payment.uid === req.user.uid &&
-        payment.status !== "completed"
-      )
-      .sort((a, b) =>
-        String(b.updatedAt || b.createdAt || "")
-          .localeCompare(
-            String(a.updatedAt || a.createdAt || "")
-          )
-      );
-
-    return res.status(200).json({
-      success: true,
-      payments: list
-    });
-
-  } catch (error) {
-    console.error(
-      "[WorldArts] Incomplete Payments Error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      error: "Ntivyashobotse kuronka incomplete payments."
-    });
-  }
-});
-
-/* =========================================================
-   ALL CURRENT USER PAYMENTS
-   GET /api/payments/
-   ========================================================= */
-
-router.get("/", requireAuth, (req, res) => {
-  try {
-    const list = Array.from(payments.values())
-      .filter(payment =>
-        payment.uid === req.user.uid
-      )
-      .sort((a, b) =>
-        String(b.updatedAt || b.createdAt || "")
-          .localeCompare(
-            String(a.updatedAt || a.createdAt || "")
-          )
-      );
-
-    return res.status(200).json({
-      success: true,
-      payments: list
-    });
-
-  } catch (error) {
-    console.error(
-      "[WorldArts] Payments List Error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      error: "Ntivyashobotse kuronka payments."
+      message: error.message || 'Invalid Pi session.'
     });
   }
 });
