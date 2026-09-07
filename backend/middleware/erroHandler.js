@@ -1,43 +1,21 @@
-// middleware/errorHandler.js
-
-/**
- * Route itabonetse
- */
-function notFound(req,res,next){
-
+function notFound(req, res) {
   res.status(404).json({
-
-    error:`Route ntiboneka: ${req.method} ${req.originalUrl}`
-
+    success: false,
+    message: 'Route introuvable.',
+    path: req.originalUrl
   });
-
 }
 
+function errorHandler(err, req, res, next) {
+  console.error('WorldArts server error:', err.message || err);
 
+  if (res.headersSent) return next(err);
 
-/**
- * Gestion globale y'amakosa
- */
-function errorHandler(err,req,res,next){
-
-  console.error('[ERROR]',err);
-
-
-  const status = err.status || 500;
-
-
+  const status = Number(err.status) || 500;
   res.status(status).json({
-
-    error:
-      err.message || 'Ikosa ritazwi ryabaye.'
-
+    success: false,
+    message: status === 500 ? 'Erreur interne du serveur.' : (err.message || 'Erreur serveur.')
   });
-
 }
 
-
-
-module.exports = {
-  notFound,
-  errorHandler
-};
+module.exports = { notFound, errorHandler };
