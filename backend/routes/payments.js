@@ -1,5 +1,4 @@
 const express = require('express');
-const axios = require('axios');
 
 const router = express.Router();
 
@@ -9,29 +8,78 @@ const PI_API_BASE_URL = (
 
 const PI_API_KEY = process.env.PI_API_KEY;
 
-function requirePiApiKey(res) {
-  if (!PI_API_KEY) {
-    res.status(500).json({
-      success: false,
-      error: 'PI_API_KEY is not configured on the server.'
-    });
-    return false;
-  }
+// --------------------------------------------------
+// Helpers
+// --------------------------------------------------
 
-  return true;
-}
-
-function piHeaders() {
+function getPiHeaders() {
   return {
     Authorization: `Key ${PI_API_KEY}`,
     'Content-Type': 'application/json'
   };
 }
 
-/*
- * GET /api/payments/:paymentId
- * Vérifie les informations d'un paiement Pi.
- */
+function checkPiApiKey(res) {
+  if (!PI_API_KEY) {
+    return res.status(500).json({
+      success: false,
+      error: 'PI_API_KEY is not configured on the server.'
+    });
+  }
+
+  return true;
+}
+
+async function piRequest(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...getPiHeaders(),
+      ...(options.headers || {})
+    }
+  });
+
+  let data = null;
+
+  try {
+    data = await response.json();
+  } catch (_) {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const error = new Error(
+      data?.message ||
+      data?.error ||
+      `Pi API request failed with status ${response.status}`
+    );
+
+    error.status = response.status;
+    error.data = data;
+
+    throw error;
+  }
+
+  return data;
+}
+
+// --------------------------------------------------
+// Health
+// --------------------------------------------------
+
+router.get('/health', (req, res) => {
+  return res.json({
+    success: true,
+    service: 'WorldArts payments',
+    piApiConfigured: Boolean(PI_API_KEY),
+    piApiBaseUrl: PI_API_BASE_URL
+  });
+});
+
+// --------------------------------------------------
+// Get / verify a Pi payment
+// --------------------------------------------------
+
 router.get('/:paymentId', async (req, res) => {
   const { paymentId } = req.params;
 
@@ -42,46 +90,36 @@ router.get('/:paymentId', async (req, res) => {
     });
   }
 
-  if (!requirePiApiKey(res)) return;
+  if (checkPiApiKey(res) !== true) {
+    return;
+  }
 
   try {
-    const response = await axios.get(
-      `${PI_API_BASE_URL}/v2/payments/${encodeURIComponent(paymentId)}`,
-      {
-        headers: piHeaders(),
-        timeout: 15000
-      }
+    const payment = await piRequest(
+      `${PI_API_BASE_URL}/v2/payments/${encodeURIComponent(paymentId)}`
     );
 
     return res.json({
       success: true,
-      payment: response.data
+      payment
     });
   } catch (error) {
     console.error(
       'Pi payment verification error:',
-      error.response?.data || error.message
+      error.data || error.message
     );
 
-    return res.status(error.response?.status || 502).json({
+    return res.status(error.status || 502).json({
       success: false,
-      error: 'Unable to verify the Pi payment.',
-      details: error.response?.data || error.message
+      error: 'Unable to verify the Pi payment.'
     });
   }
 });
 
+// --------------------------------------------------
+// Approve Pi payment
+// --------------------------------------------------
 
-/*
- * POST /api/payments/approve
- *
- * Appelle l'API Pi pour approuver le paiement.
- *
- * Body:
- * {
- *   "paymentId": "PI_PAYMENT_ID"
- * }
- */
 router.post('/approve', async (req, res) => {
   const { paymentId } = req.body || {};
 
@@ -92,26 +130,17 @@ router.post('/approve', async (req, res) => {
     });
   }
 
-  if (!requirePiApiKey(res)) return;
+  if (checkPiApiKey(res) !== true) {
+    return;
+  }
 
   try {
-    /*
-     * Vérification préalable du paiement auprès de Pi.
-     */
-    const paymentResponse = await axios.get(
-      `${PI_API_BASE_URL}/v2/payments/${encodeURIComponent(paymentId)}`,
-      {
-        headers: piHeaders(),
-        timeout: 15000
-      }
+    // First check the payment
+    const payment = await piRequest(
+      `${PI_API_BASE_URL}/v2/payments/${encodeURIComponent(paymentId)}`
     );
 
-    const payment = paymentResponse.data;
-
-    /*
-     * Si Pi indique déjà que le paiement est approuvé,
-     * on ne recommence pas inutilement.
-     */
+    // Already approved
     if (payment?.status?.developer_approved === true) {
       return res.json({
         success: true,
@@ -121,50 +150,38 @@ router.post('/approve', async (req, res) => {
       });
     }
 
-    /*
-     * Approbation du paiement.
-     */
-    const approvalResponse = await axios.post(
+    // Approve payment
+    const approvedPayment = await piRequest(
       `${PI_API_BASE_URL}/v2/payments/${encodeURIComponent(paymentId)}/approve`,
-      {},
       {
-        headers: piHeaders(),
-        timeout: 15000
+        method: 'POST',
+        body: JSON.stringify({})
       }
     );
 
     return res.json({
       success: true,
       approved: true,
-      payment: approvalResponse.data
+      payment: approvedPayment
     });
   } catch (error) {
     console.error(
       'Pi payment approval error:',
-      error.response?.data || error.message
+      error.data || error.message
     );
 
-    return res.status(error.response?.status || 502).json({
+    return res.status(error.status || 502).json({
       success: false,
       approved: false,
-      error: 'Unable to approve the Pi payment.',
-      details: error.response?.data || error.message
+      error: 'Unable to approve the Pi payment.'
     });
   }
 });
 
+// --------------------------------------------------
+// Complete Pi payment
+// --------------------------------------------------
 
-/*
- * POST /api/payments/complete
- *
- * Complète le paiement Pi après réception du txid.
- *
- * Body:
- * {
- *   "paymentId": "PI_PAYMENT_ID",
- *   "txid": "BLOCKCHAIN_TRANSACTION_ID"
- * }
- */
 router.post('/complete', async (req, res) => {
   const { paymentId, txid } = req.body || {};
 
@@ -182,25 +199,17 @@ router.post('/complete', async (req, res) => {
     });
   }
 
-  if (!requirePiApiKey(res)) return;
+  if (checkPiApiKey(res) !== true) {
+    return;
+  }
 
   try {
-    /*
-     * Vérification du paiement avant complétion.
-     */
-    const paymentResponse = await axios.get(
-      `${PI_API_BASE_URL}/v2/payments/${encodeURIComponent(paymentId)}`,
-      {
-        headers: piHeaders(),
-        timeout: 15000
-      }
+    // Check current payment status
+    const payment = await piRequest(
+      `${PI_API_BASE_URL}/v2/payments/${encodeURIComponent(paymentId)}`
     );
 
-    const payment = paymentResponse.data;
-
-    /*
-     * Éviter de compléter un paiement déjà complété.
-     */
+    // Already completed
     if (payment?.status?.developer_completed === true) {
       return res.json({
         success: true,
@@ -210,10 +219,7 @@ router.post('/complete', async (req, res) => {
       });
     }
 
-    /*
-     * Vérifie que le paiement a bien été approuvé
-     * par le serveur avant de le compléter.
-     */
+    // Payment must be approved first
     if (payment?.status?.developer_approved !== true) {
       return res.status(409).json({
         success: false,
@@ -222,54 +228,38 @@ router.post('/complete', async (req, res) => {
       });
     }
 
-    /*
-     * Complétion auprès de Pi.
-     */
-    const completionResponse = await axios.post(
+    // Complete payment
+    const completedPayment = await piRequest(
       `${PI_API_BASE_URL}/v2/payments/${encodeURIComponent(paymentId)}/complete`,
       {
-        txid
-      },
-      {
-        headers: piHeaders(),
-        timeout: 15000
+        method: 'POST',
+        body: JSON.stringify({
+          txid
+        })
       }
     );
 
     return res.json({
       success: true,
       completed: true,
-      payment: completionResponse.data
+      payment: completedPayment
     });
   } catch (error) {
     console.error(
       'Pi payment completion error:',
-      error.response?.data || error.message
+      error.data || error.message
     );
 
-    return res.status(error.response?.status || 502).json({
+    return res.status(error.status || 502).json({
       success: false,
       completed: false,
-      error: 'Unable to complete the Pi payment.',
-      details: error.response?.data || error.message
+      error: 'Unable to complete the Pi payment.'
     });
   }
 });
 
-
-/*
- * GET /api/payments/health
- *
- * Vérification simple de la configuration de la route.
- */
-router.get('/health', (req, res) => {
-  return res.json({
-    success: true,
-    service: 'WorldArts payments',
-    piApiConfigured: Boolean(PI_API_KEY),
-    piApiBaseUrl: PI_API_BASE_URL
-  });
-});
-
+// --------------------------------------------------
+// Export
+// --------------------------------------------------
 
 module.exports = router;
