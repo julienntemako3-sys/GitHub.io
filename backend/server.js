@@ -245,23 +245,14 @@ if (require.main === module) {
       }`
     );
 
-    console.log(
-      `Frontend autorisés : ${
-        allowedOrigins.length > 0
-          ? allowedOrigins.join(', ')
-          : 'tous (FRONTEND_URLS non configuré)'
-      }`
-    );
+    const PORT = Number(process.env.PORT) || 10000;
+
+if (require.main === module) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`WorldArts backend running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Pi API: ${process.env.PI_API_BASE_URL || 'https://api.minepi.com'}`);
   });
 }
-
-/*
-|--------------------------------------------------------------------------
-| Export app
-|--------------------------------------------------------------------------
-|
-| Useful for testing and external imports.
-|
-*/
 
 module.exports = app;
