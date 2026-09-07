@@ -1,24 +1,42 @@
+const express = require('express');
+const router = express.Router();
 
-{
-  "name": "worldarts-backend",
-  "version": "1.1.0",
-  "description": "Backend Node.js/Express pour WorldArts avec intégration Pi Network",
-  "main": "server.js",
-  "type": "commonjs",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+const artists = [
+  {
+    id: 'artist-1',
+    name: 'Amara K.',
+    country: 'Burundi',
+    bio: 'Artiste peintre inspirée par les paysages du lac Tanganyika.',
+    avatarUrl: ''
   },
-  "engines": { "node": ">=18.0.0" },
-  "dependencies": {
-    "axios": "^1.7.4",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "express-rate-limit": "^7.4.0",
-    "helmet": "^7.1.0",
-    "morgan": "^1.10.0",
-    "uuid": "^9.0.1"
+  {
+    id: 'artist-2',
+    name: 'WorldArts Artist',
+    country: 'Afrique de l\'Est',
+    bio: 'Collectif d\'artistes mettant en avant la culture est-africaine.',
+    avatarUrl: ''
   },
-  "devDependencies": { "nodemon": "^3.1.4" }
-}
+  {
+    id: 'artist-3',
+    name: 'Nkurunziza J.',
+    country: 'Burundi',
+    bio: 'Sculpteur et artiste digital, membre de la communauté WorldArts.',
+    avatarUrl: ''
+  }
+];
+
+router.get('/', (req, res) => {
+  res.json({ success: true, artists });
+});
+
+router.get('/:id', (req, res) => {
+  const artist = artists.find((a) => a.id === req.params.id);
+
+  if (!artist) {
+    return res.status(404).json({ success: false, error: 'Artist not found' });
+  }
+
+  return res.json({ success: true, artist });
+});
+
+module.exports = router;
