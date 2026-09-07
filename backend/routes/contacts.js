@@ -1,4 +1,3 @@
-
 const express = require("express");
 
 const router = express.Router();
@@ -43,68 +42,38 @@ router.post("/", (req, res) => {
     const subject = cleanText(body.subject);
     const message = cleanText(body.message);
 
-    /* Required fields */
     if (!name) {
-      return res.status(400).json({
-        success: false,
-        error: "Le nom est obligatoire."
-      });
+      return res.status(400).json({ success: false, error: "Le nom est obligatoire." });
     }
 
     if (!email) {
-      return res.status(400).json({
-        success: false,
-        error: "L'adresse email est obligatoire."
-      });
+      return res.status(400).json({ success: false, error: "L'adresse email est obligatoire." });
     }
 
     if (!validEmail(email)) {
-      return res.status(400).json({
-        success: false,
-        error: "Adresse email invalide."
-      });
+      return res.status(400).json({ success: false, error: "Adresse email invalide." });
     }
 
     if (!message) {
-      return res.status(400).json({
-        success: false,
-        error: "Le message est obligatoire."
-      });
+      return res.status(400).json({ success: false, error: "Le message est obligatoire." });
     }
 
-    /* Length protection */
     if (name.length > 100) {
-      return res.status(400).json({
-        success: false,
-        error: "Le nom est trop long."
-      });
+      return res.status(400).json({ success: false, error: "Le nom est trop long." });
     }
 
     if (email.length > 200) {
-      return res.status(400).json({
-        success: false,
-        error: "L'adresse email est trop longue."
-      });
+      return res.status(400).json({ success: false, error: "L'adresse email est trop longue." });
     }
 
     if (subject.length > 200) {
-      return res.status(400).json({
-        success: false,
-        error: "Le sujet est trop long."
-      });
+      return res.status(400).json({ success: false, error: "Le sujet est trop long." });
     }
 
     if (message.length > 5000) {
-      return res.status(400).json({
-        success: false,
-        error: "Le message ne peut pas dépasser 5000 caractères."
-      });
+      return res.status(400).json({ success: false, error: "Le message ne peut pas dépasser 5000 caractères." });
     }
 
-    /*
-     * Simple ID local.
-     * Aucun UUID/package externe.
-     */
     const contactMessage = {
       id: "contact_" + Date.now(),
       name,
@@ -117,19 +86,10 @@ router.post("/", (req, res) => {
 
     messages.push(contactMessage);
 
-    /*
-     * Garder seulement les 100 derniers messages
-     * pour éviter que la mémoire du serveur grossisse
-     * indéfiniment.
-     */
     if (messages.length > 100) {
       messages.shift();
     }
 
-    /*
-     * Pour Render/logs.
-     * Le message est reçu par le backend.
-     */
     console.log("WORLDARTS CONTACT MESSAGE");
     console.log({
       id: contactMessage.id,
@@ -184,9 +144,5 @@ router.get("/messages", (req, res) => {
     messages: messages
   });
 });
-
-/* =========================
-   EXPORT
-========================= */
 
 module.exports = router;
