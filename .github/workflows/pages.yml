@@ -1,4 +1,4 @@
-name: Deploy WorldArts to GitHub Pages
+name: Deploy WorldArts frontend to GitHub Pages
 
 on:
   push:
@@ -25,16 +25,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Setup GitHub Pages
+      - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload WorldArts frontend
-        uses: actions/upload-pages-artifact@v4
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          path: ./frontend
+          path: './frontend'
 
-      - name: Deploy WorldArts to GitHub Pages
+      - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
