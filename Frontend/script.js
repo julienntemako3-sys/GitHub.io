@@ -1,2390 +1,762 @@
-/* =========================================================
+/* ============================================================
    WorldArts — script.js
-   Version finale — compatible avec index.html actuel
-   i18n 6 langues · thème · menu · Pi SDK · galerie
-   Pi Login · Pi Payment · contact · modals · navigation
-   ========================================================= */
-
-(function () {
-  "use strict";
-
-  /* =======================================================
-     CONFIGURATION
-     ======================================================= */
-
-  const API_BASE = String(
-    window.WORLDARTS_API_BASE ||
-    "https://worldarts-backend.onrender.com/api"
-  ).replace(/\/$/, "");
-
-  const PI_SANDBOX = false;
-
-  let piUser = null;
-  let currentPayment = null;
-  let piInitialized = false;
-
-
-  /* =======================================================
-     TRADUCTIONS
-     ======================================================= */
-
-  const translations = {
-
-    fr: {
-      "accessibility.skip": "Aller au contenu principal",
-      "language.label": "Choisir la langue",
-      "theme.change": "Changer de thème",
-      "nav.menu": "Menu",
-
-      "nav.home": "Accueil",
-      "nav.gallery": "Galerie",
-      "nav.artists": "Artistes",
-      "nav.marketplace": "Marché",
-      "nav.about": "À propos",
-      "nav.contact": "Contact",
-      "nav.connect": "Se connecter avec Pi",
-
-      "hero.eyebrow": "Marché d'art mondial",
-      "hero.title": "Découvrez, collectionnez et vendez de l'art <em>partout dans le monde</em>",
-      "hero.subtitle": "WorldArts réunit artistes et collectionneurs autour d'œuvres, de musique et de vidéos, avec des paiements en Pi Network et en WART.",
-      "hero.connect": "Se connecter avec Pi",
-      "hero.explore": "Explorer la galerie",
-      "hero.stats.countries": "Pays",
-      "hero.stats.languages": "Langues",
-      "hero.stats.payments": "Paiements natifs",
-      "hero.note": "Paiements exclusivement en π (Pi) et WART — aucun dollar, aucun USDT",
-
-      "features.eyebrow": "Ce que vous pouvez faire",
-      "features.title": "Une seule application, tout l'art du monde",
-      "features.visual": "Visuel",
-      "features.audio": "Audio",
-      "features.motion": "Vidéo",
-      "features.trade": "Commerce",
-      "features.art.title": "Découvrir l'art",
-      "features.art.text": "Parcourez des œuvres originales issues d'artistes du monde entier.",
-      "features.gallery": "Galerie",
-      "features.music.title": "Découvrir la musique",
-      "features.music.text": "Écoutez et soutenez des créateurs musicaux indépendants.",
-      "features.videos.title": "Découvrir les vidéos",
-      "features.videos.text": "Explorez des créations vidéo et des performances.",
-      "features.pi.title": "Acheter & vendre avec Pi",
-      "features.pi.text": "Réalisez vos transactions avec Pi Network ou WART.",
-      "features.marketplace": "Marketplace",
-
-      "gallery.eyebrow": "Sélection",
-      "gallery.title": "Le mur de la galerie",
-      "gallery.loading": "Chargement des œuvres...",
-      "gallery.empty": "Aucune œuvre disponible pour le moment.",
-      "gallery.error": "Impossible de charger la galerie pour le moment.",
-      "gallery.buyPi": "Acheter avec Pi",
-      "gallery.buyWart": "Acheter avec WART",
-
-      "artists.eyebrow": "Communauté",
-      "artists.title": "Artistes à l'honneur",
-      "artists.aline.origin": "Bujumbura, Burundi",
-      "artists.aline.bio": "Artiste peintre utilisant différentes techniques et explorant les traditions de la région des Grands Lacs.",
-      "artists.kenji.origin": "Osaka, Japon",
-      "artists.kenji.bio": "Compositeur mélangeant le koto traditionnel et les sonorités électroniques.",
-      "artists.samira.origin": "Le Caire, Égypte",
-      "artists.samira.bio": "Réalisatrice documentant les artisans de la vallée du Nil.",
-
-      "about.eyebrow": "Notre mission",
-      "about.title": "L'art comme langage commun",
-      "about.text1": "WorldArts réunit les créateurs et les collectionneurs du monde entier dans un même espace.",
-      "about.text2": "L'application prend en charge six langues et les paiements en Pi Network et WART.",
-
-      "payment.eyebrow": "Paiements",
-      "payment.title": "Une monnaie pour un art sans frontières",
-      "payment.text": "Les paiements WorldArts utilisent Pi Network ou WART.",
-      "payment.pi": "Pi Network",
-      "payment.wart": "WorldArts Token",
-      "payment.noFiat": "Aucun USD · Aucun USDT",
-
-      "pi.auth.title": "Authentification Pi",
-      "pi.auth.text": "Connectez votre compte Pi pour effectuer les paiements.",
-      "pi.auth.connect": "Se connecter avec Pi",
-      "pi.status.disconnected": "Non connecté",
-      "pi.status.connecting": "Connexion à Pi...",
-      "pi.status.connected": "Connecté à Pi",
-      "pi.status.waiting": "— en attente de connexion —",
-
-      "contact.eyebrow": "Nous écrire",
-      "contact.title": "Une question pour l'équipe WorldArts ?",
-      "contact.form.name": "Votre nom",
-      "contact.form.email": "Votre email",
-      "contact.form.message": "Votre message",
-      "contact.form.send": "Envoyer le message",
-      "contact.form.sent": "Merci, votre message a bien été reçu.",
-
-      "modal.close": "Fermer",
-      "modal.login.title": "Connexion Pi",
-      "modal.login.text": "Authentifiez-vous avec votre compte Pi pour accéder à WorldArts.",
-      "modal.login.action": "Continuer avec Pi",
-      "modal.payment.title": "Confirmer le paiement",
-      "modal.payment.text": "Cette œuvre sera payée directement via le Pi SDK.",
-      "modal.payment.action": "Payer avec Pi",
-
-      "footer.description": "Le marché mondial de l'art, de la musique et du cinéma, propulsé par Pi Network.",
-      "footer.explore": "Explorer",
-      "footer.company": "Organisation",
-      "footer.contact": "Contact",
-      "footer.rights": "© 2026 WorldArts. Tous droits réservés."
-    },
-
-    en: {
-      "accessibility.skip": "Skip to main content",
-      "language.label": "Choose language",
-      "theme.change": "Change theme",
-      "nav.menu": "Menu",
-
-      "nav.home": "Home",
-      "nav.gallery": "Gallery",
-      "nav.artists": "Artists",
-      "nav.marketplace": "Marketplace",
-      "nav.about": "About",
-      "nav.contact": "Contact",
-      "nav.connect": "Connect with Pi",
-
-      "hero.eyebrow": "Global art marketplace",
-      "hero.title": "Discover, collect and sell art <em>anywhere in the world</em>",
-      "hero.subtitle": "WorldArts brings artists and collectors together around art, music and video, with Pi Network and WART payments.",
-      "hero.connect": "Connect with Pi",
-      "hero.explore": "Explore the gallery",
-      "hero.stats.countries": "Countries",
-      "hero.stats.languages": "Languages",
-      "hero.stats.payments": "Native payments",
-      "hero.note": "Payments exclusively in π (Pi) and WART — no dollars, no USDT",
-
-      "features.eyebrow": "What you can do",
-      "features.title": "One app, all the world's art",
-      "features.visual": "Visual",
-      "features.audio": "Audio",
-      "features.motion": "Video",
-      "features.trade": "Commerce",
-      "features.art.title": "Discover art",
-      "features.art.text": "Browse original artworks from artists worldwide.",
-      "features.gallery": "Gallery",
-      "features.music.title": "Discover music",
-      "features.music.text": "Listen to and support independent creators.",
-      "features.videos.title": "Discover videos",
-      "features.videos.text": "Explore video works and performances.",
-      "features.pi.title": "Buy & sell with Pi",
-      "features.pi.text": "Complete transactions with Pi Network or WART.",
-      "features.marketplace": "Marketplace",
-
-      "gallery.eyebrow": "Selection",
-      "gallery.title": "The gallery wall",
-      "gallery.loading": "Loading artworks...",
-      "gallery.empty": "No artworks are available at the moment.",
-      "gallery.error": "Unable to load the gallery at the moment.",
-      "gallery.buyPi": "Buy with Pi",
-      "gallery.buyWart": "Buy with WART",
-
-      "artists.eyebrow": "Community",
-      "artists.title": "Featured artists",
-      "artists.aline.origin": "Bujumbura, Burundi",
-      "artists.aline.bio": "Painter exploring different techniques and traditions of the Great Lakes region.",
-      "artists.kenji.origin": "Osaka, Japan",
-      "artists.kenji.bio": "Composer blending traditional koto with electronic sounds.",
-      "artists.samira.origin": "Cairo, Egypt",
-      "artists.samira.bio": "Filmmaker documenting artisans of the Nile Valley.",
-
-      "about.eyebrow": "Our mission",
-      "about.title": "Art as a common language",
-      "about.text1": "WorldArts brings creators and collectors from around the world together in one space.",
-      "about.text2": "The application supports six languages and payments in Pi Network and WART.",
-
-      "payment.eyebrow": "Payments",
-      "payment.title": "One currency for borderless art",
-      "payment.text": "WorldArts payments use Pi Network or WART.",
-      "payment.pi": "Pi Network",
-      "payment.wart": "WorldArts Token",
-      "payment.noFiat": "No USD · No USDT",
-
-      "pi.auth.title": "Pi Authentication",
-      "pi.auth.text": "Connect your Pi account to make payments.",
-      "pi.auth.connect": "Connect with Pi",
-      "pi.status.disconnected": "Not connected",
-      "pi.status.connecting": "Connecting to Pi...",
-      "pi.status.connected": "Connected to Pi",
-      "pi.status.waiting": "— waiting for connection —",
-
-      "contact.eyebrow": "Get in touch",
-      "contact.title": "A question for the WorldArts team?",
-      "contact.form.name": "Your name",
-      "contact.form.email": "Your email",
-      "contact.form.message": "Your message",
-      "contact.form.send": "Send message",
-      "contact.form.sent": "Thanks, your message was received.",
-
-      "modal.close": "Close",
-      "modal.login.title": "Pi Login",
-      "modal.login.text": "Authenticate with your Pi account to access WorldArts.",
-      "modal.login.action": "Continue with Pi",
-      "modal.payment.title": "Confirm payment",
-      "modal.payment.text": "This artwork will be paid directly through the Pi SDK.",
-      "modal.payment.action": "Pay with Pi",
-
-      "footer.description": "The global marketplace for art, music and cinema, powered by Pi Network.",
-      "footer.explore": "Explore",
-      "footer.company": "Organization",
-      "footer.contact": "Contact",
-      "footer.rights": "© 2026 WorldArts. All rights reserved."
-    },
-
-    rn: {
-      "accessibility.skip": "Ja ku biri ku vy'ingenzi",
-      "language.label": "Hitamwo ururimi",
-      "theme.change": "Hindura uburyo bw'ibara",
-      "nav.menu": "Ibikubiyemwo",
-
-      "nav.home": "Ku ntango",
-      "nav.gallery": "Ikaze ry'ubuhanzi",
-      "nav.artists": "Abahanzi",
-      "nav.marketplace": "Isoko",
-      "nav.about": "Ivyerekeye",
-      "nav.contact": "Twandikire",
-      "nav.connect": "Injira na Pi",
-
-      "hero.eyebrow": "Isoko mpuzamakungu ry'ubuhanzi",
-      "hero.title": "Rondera, egeranya kandi ugurishe ubuhanzi <em>hose kw'isi</em>",
-      "hero.subtitle": "WorldArts ihuza abahanzi n'abakusanya ibihangano, umuziki n'amashusho, bishurwa muri Pi Network na WART.",
-      "hero.connect": "Injira na Pi",
-      "hero.explore": "Raba ikaze ry'ubuhanzi",
-      "hero.stats.countries": "Ibihugu",
-      "hero.stats.languages": "Indimi",
-      "hero.stats.payments": "Kwishura",
-      "hero.note": "Kwishura gusa muri π (Pi) na WART — nta dolari canke USDT",
-
-      "features.eyebrow": "Ivyo ushobora gukora",
-      "features.title": "Porogarama imwe, ubuhanzi bwose bw'isi",
-      "features.visual": "Ibishushanyo",
-      "features.audio": "Umuziki",
-      "features.motion": "Amashusho",
-      "features.trade": "Ubudandaji",
-      "features.art.title": "Rondera ubuhanzi",
-      "features.art.text": "Raba ibihangano biva ku bahanzi bo hirya no hino kw'isi.",
-      "features.gallery": "Ikaze ry'ubuhanzi",
-      "features.music.title": "Rondera umuziki",
-      "features.music.text": "Umva kandi ushigikire abahanzi b'umuziki.",
-      "features.videos.title": "Rondera amashusho",
-      "features.videos.text": "Raba ibihangano vy'amashusho.",
-      "features.pi.title": "Gura no kugurisha na Pi",
-      "features.pi.text": "Kora ibikorwa vyawe ukoresheje Pi Network canke WART.",
-      "features.marketplace": "Isoko",
-
-      "gallery.eyebrow": "Amatora",
-      "gallery.title": "Uruzitiro rw'ikaze",
-      "gallery.loading": "Ibihangano biriko birapakururwa...",
-      "gallery.empty": "Nta gihangano kiraboneka ubu.",
-      "gallery.error": "Ntitwashoboye gupakurura ikaze ubu.",
-      "gallery.buyPi": "Gura na Pi",
-      "gallery.buyWart": "Gura na WART",
-
-      "artists.eyebrow": "Umuryango",
-      "artists.title": "Abahanzi bahawe icubahiro",
-      "artists.aline.origin": "Bujumbura, Burundi",
-      "artists.aline.bio": "Umuhanzi w'amashusho akoresha uburyo butandukanye kandi agashakashaka imigenzo y'akarere k'Ibiyaga Binini.",
-      "artists.kenji.origin": "Osaka, Ubuyapani",
-      "artists.kenji.bio": "Umuhimbyi avanga koto gakondo n'amajwi ya none.",
-      "artists.samira.origin": "Cairo, Misiri",
-      "artists.samira.bio": "Umuhinguzi w'amafilime yerekana abanyabukorikori bo mu kiyaya ca Nili.",
-
-      "about.eyebrow": "Intumbero yacu",
-      "about.title": "Ubuhanzi nk'ururimi rusanzwe",
-      "about.text1": "WorldArts ihuza abahanzi n'abakusanya ibihangano bo kw'isi yose.",
-      "about.text2": "Porogarama ishigikira indimi zitandatu hamwe no kwishura muri Pi Network na WART.",
-
-      "payment.eyebrow": "Kwishura",
-      "payment.title": "Ifaranga rimwe ku buhanzi butagira imbibe",
-      "payment.text": "Kwishura muri WorldArts bikorwa muri Pi Network canke WART.",
-      "payment.pi": "Pi Network",
-      "payment.wart": "WorldArts Token",
-      "payment.noFiat": "Nta USD · Nta USDT",
-
-      "pi.auth.title": "Kwemeza konti ya Pi",
-      "pi.auth.text": "Huza konti yawe ya Pi kugira ngo ushobore kwishura.",
-      "pi.auth.connect": "Injira na Pi",
-      "pi.status.disconnected": "Ntaco irahuza",
-      "pi.status.connecting": "Pi iriko irahuza...",
-      "pi.status.connected": "Yahujwe na Pi",
-      "pi.status.waiting": "— turindiriye ukwinjira —",
-
-      "contact.eyebrow": "Twandikire",
-      "contact.title": "Ikibazo ku bakozi ba WorldArts?",
-      "contact.form.name": "Izina ryawe",
-      "contact.form.email": "Imeyili yawe",
-      "contact.form.message": "Ubutumwa bwawe",
-      "contact.form.send": "Rungika ubutumwa",
-      "contact.form.sent": "Urakoze, ubutumwa bwawe bwakiriwe.",
-
-      "modal.close": "Funga",
-      "modal.login.title": "Kwinjira na Pi",
-      "modal.login.text": "Wiyemeze ukoresheje konti yawe ya Pi kugira ngo ukoreshe WorldArts.",
-      "modal.login.action": "Komeza na Pi",
-      "modal.payment.title": "Emeza kwishura",
-      "modal.payment.text": "Iki gihangano kizishurwa biciye muri Pi SDK.",
-      "modal.payment.action": "Ishura na Pi",
-
-      "footer.description": "Isoko mpuzamakungu ry'ubuhanzi, umuziki n'amafilime, rikoreshwa na Pi Network.",
-      "footer.explore": "Raba",
-      "footer.company": "Ishirahamwe",
-      "footer.contact": "Twandikire",
-      "footer.rights": "© 2026 WorldArts. Uburenganzira bwose burabitswe."
-    },
-
-    sw: {
-      "accessibility.skip": "Nenda kwenye maudhui makuu",
-      "language.label": "Chagua lugha",
-      "theme.change": "Badilisha mandhari",
-      "nav.menu": "Menyu",
-
-      "nav.home": "Nyumbani",
-      "nav.gallery": "Ghala la Sanaa",
-      "nav.artists": "Wasanii",
-      "nav.marketplace": "Soko",
-      "nav.about": "Kuhusu",
-      "nav.contact": "Wasiliana",
-      "nav.connect": "Ungana na Pi",
-
-      "hero.eyebrow": "Soko la sanaa la kimataifa",
-      "hero.title": "Gundua, kusanya na uuze sanaa <em>popote duniani</em>",
-      "hero.subtitle": "WorldArts inaunganisha wasanii na wakusanyaji kwa Pi Network na WART.",
-      "hero.connect": "Ungana na Pi",
-      "hero.explore": "Chunguza ghala",
-      "hero.stats.countries": "Nchi",
-      "hero.stats.languages": "Lugha",
-      "hero.stats.payments": "Malipo",
-      "hero.note": "Malipo pekee kwa π (Pi) na WART — hakuna dola wala USDT",
-
-      "features.eyebrow": "Unachoweza kufanya",
-      "features.title": "Programu moja, sanaa yote ya dunia",
-      "features.visual": "Picha",
-      "features.audio": "Sauti",
-      "features.motion": "Video",
-      "features.trade": "Biashara",
-      "features.art.title": "Gundua sanaa",
-      "features.art.text": "Vinjari kazi za wasanii duniani kote.",
-      "features.gallery": "Ghala",
-      "features.music.title": "Gundua muziki",
-      "features.music.text": "Sikiliza na uwaunge mkono wasanii.",
-      "features.videos.title": "Gundua video",
-      "features.videos.text": "Chunguza kazi za video.",
-      "features.pi.title": "Nunua na uuze kwa Pi",
-      "features.pi.text": "Kamilisha miamala kwa Pi Network au WART.",
-      "features.marketplace": "Soko",
-
-      "gallery.eyebrow": "Uteuzi",
-      "gallery.title": "Ukuta wa ghala",
-      "gallery.loading": "Inapakia kazi...",
-      "gallery.empty": "Hakuna kazi inayopatikana kwa sasa.",
-      "gallery.error": "Haiwezekani kupakia ghala kwa sasa.",
-      "gallery.buyPi": "Nunua kwa Pi",
-      "gallery.buyWart": "Nunua kwa WART",
-
-      "artists.eyebrow": "Jamii",
-      "artists.title": "Wasanii wanaoangaziwa",
-      "artists.aline.origin": "Bujumbura, Burundi",
-      "artists.aline.bio": "Msanii anayechunguza mbinu mbalimbali na mila za eneo la Maziwa Makuu.",
-      "artists.kenji.origin": "Osaka, Japani",
-      "artists.kenji.bio": "Mtunzi anayechanganya koto ya jadi na sauti za kielektroniki.",
-      "artists.samira.origin": "Cairo, Misri",
-      "artists.samira.bio": "Mtengenezaji wa filamu anayerekodi mafundi wa Bonde la Nile.",
-
-      "about.eyebrow": "Dhamira yetu",
-      "about.title": "Sanaa kama lugha ya pamoja",
-      "about.text1": "WorldArts inaunganisha waundaji na wakusanyaji kutoka duniani kote.",
-      "about.text2": "Programu inaunga mkono lugha sita na malipo kwa Pi Network na WART.",
-
-      "payment.eyebrow": "Malipo",
-      "payment.title": "Sarafu moja kwa sanaa isiyo na mipaka",
-      "payment.text": "Malipo ya WorldArts hutumia Pi Network au WART.",
-      "payment.pi": "Pi Network",
-      "payment.wart": "WorldArts Token",
-      "payment.noFiat": "Hakuna USD · Hakuna USDT",
-
-      "pi.auth.title": "Uthibitishaji wa Pi",
-      "pi.auth.text": "Unganisha akaunti yako ya Pi ili kufanya malipo.",
-      "pi.auth.connect": "Ungana na Pi",
-      "pi.status.disconnected": "Haijaunganishwa",
-      "pi.status.connecting": "Inaunganisha Pi...",
-      "pi.status.connected": "Imeunganishwa na Pi",
-      "pi.status.waiting": "— inasubiri muunganisho —",
-
-      "contact.eyebrow": "Wasiliana nasi",
-      "contact.title": "Una swali kwa timu ya WorldArts?",
-      "contact.form.name": "Jina lako",
-      "contact.form.email": "Barua pepe yako",
-      "contact.form.message": "Ujumbe wako",
-      "contact.form.send": "Tuma ujumbe",
-      "contact.form.sent": "Asante, ujumbe wako umepokelewa.",
-
-      "modal.close": "Funga",
-      "modal.login.title": "Kuingia kwa Pi",
-      "modal.login.text": "Thibitisha akaunti yako ya Pi.",
-      "modal.login.action": "Endelea na Pi",
-      "modal.payment.title": "Thibitisha malipo",
-      "modal.payment.text": "Kazi hii italipwa kupitia Pi SDK.",
-      "modal.payment.action": "Lipa kwa Pi",
-
-      "footer.description": "Soko la kimataifa la sanaa, muziki na filamu, likitumia Pi Network.",
-      "footer.explore": "Chunguza",
-      "footer.company": "Shirika",
-      "footer.contact": "Wasiliana",
-      "footer.rights": "© 2026 WorldArts. Haki zote zimehifadhiwa."
-    },
-
-    ar: {
-      "accessibility.skip": "انتقل إلى المحتوى الرئيسي",
-      "language.label": "اختر اللغة",
-      "theme.change": "تغيير المظهر",
-      "nav.menu": "القائمة",
-
-      "nav.home": "الرئيسية",
-      "nav.gallery": "المعرض",
-      "nav.artists": "الفنانون",
-      "nav.marketplace": "السوق",
-      "nav.about": "من نحن",
-      "nav.contact": "تواصل معنا",
-      "nav.connect": "الاتصال عبر Pi",
-
-      "hero.eyebrow": "سوق الفن العالمي",
-      "hero.title": "اكتشف واقتنِ وبِع الفن <em>في أي مكان بالعالم</em>",
-      "hero.subtitle": "تجمع WorldArts بين الفنانين وجامعي الأعمال مع الدفع عبر Pi Network وWART.",
-      "hero.connect": "الاتصال عبر Pi",
-      "hero.explore": "استكشف المعرض",
-      "hero.stats.countries": "الدول",
-      "hero.stats.languages": "اللغات",
-      "hero.stats.payments": "المدفوعات",
-      "hero.note": "الدفع حصريًا بعملة Pi وWART — لا دولار ولا USDT",
-
-      "features.eyebrow": "ما يمكنك فعله",
-      "features.title": "تطبيق واحد، كل فن العالم",
-      "features.visual": "مرئي",
-      "features.audio": "صوت",
-      "features.motion": "فيديو",
-      "features.trade": "تجارة",
-      "features.art.title": "اكتشف الفن",
-      "features.art.text": "تصفح أعمال الفنانين حول العالم.",
-      "features.gallery": "المعرض",
-      "features.music.title": "اكتشف الموسيقى",
-      "features.music.text": "استمع وادعم المبدعين.",
-      "features.videos.title": "اكتشف الفيديوهات",
-      "features.videos.text": "استكشف أعمال الفيديو.",
-      "features.pi.title": "الشراء والبيع عبر Pi",
-      "features.pi.text": "أتمم المعاملات عبر Pi أو WART.",
-      "features.marketplace": "السوق",
-
-      "gallery.eyebrow": "مختارات",
-      "gallery.title": "جدار المعرض",
-      "gallery.loading": "جار تحميل الأعمال...",
-      "gallery.empty": "لا توجد أعمال متاحة حاليًا.",
-      "gallery.error": "تعذر تحميل المعرض حاليًا.",
-      "gallery.buyPi": "الشراء عبر Pi",
-      "gallery.buyWart": "الشراء عبر WART",
-
-      "artists.eyebrow": "المجتمع",
-      "artists.title": "فنانون مميزون",
-      "artists.aline.origin": "بوجومبورا، بوروندي",
-      "artists.aline.bio": "فنانة تستكشف تقنيات مختلفة وتقاليد منطقة البحيرات العظمى.",
-      "artists.kenji.origin": "أوساكا، اليابان",
-      "artists.kenji.bio": "ملحن يمزج الكوتو التقليدي مع الأصوات الإلكترونية.",
-      "artists.samira.origin": "القاهرة، مصر",
-      "artists.samira.bio": "مخرجة توثق الحرفيين في وادي النيل.",
-
-      "about.eyebrow": "مهمتنا",
-      "about.title": "الفن كلغة مشتركة",
-      "about.text1": "تجمع WorldArts بين المبدعين وجامعي الأعمال من جميع أنحاء العالم.",
-      "about.text2": "يدعم التطبيق ست لغات والمدفوعات عبر Pi Network وWART.",
-
-      "payment.eyebrow": "المدفوعات",
-      "payment.title": "عملة واحدة لفن بلا حدود",
-      "payment.text": "مدفوعات WorldArts عبر Pi Network أو WART.",
-      "payment.pi": "Pi Network",
-      "payment.wart": "WorldArts Token",
-      "payment.noFiat": "لا USD · لا USDT",
-
-      "pi.auth.title": "مصادقة Pi",
-      "pi.auth.text": "اربط حساب Pi الخاص بك لإجراء المدفوعات.",
-      "pi.auth.connect": "الاتصال عبر Pi",
-      "pi.status.disconnected": "غير متصل",
-      "pi.status.connecting": "جار الاتصال بـ Pi...",
-      "pi.status.connected": "متصل بـ Pi",
-      "pi.status.waiting": "— في انتظار الاتصال —",
-
-      "contact.eyebrow": "راسلنا",
-      "contact.title": "سؤال لفريق WorldArts؟",
-      "contact.form.name": "اسمك",
-      "contact.form.email": "بريدك الإلكتروني",
-      "contact.form.message": "رسالتك",
-      "contact.form.send": "إرسال الرسالة",
-      "contact.form.sent": "شكرًا، تم استلام رسالتك.",
-
-      "modal.close": "إغلاق",
-      "modal.login.title": "تسجيل الدخول عبر Pi",
-      "modal.login.text": "وثّق حسابك عبر Pi.",
-      "modal.login.action": "المتابعة عبر Pi",
-      "modal.payment.title": "تأكيد الدفع",
-      "modal.payment.text": "سيُدفع ثمن هذا العمل عبر Pi SDK.",
-      "modal.payment.action": "الدفع عبر Pi",
-
-      "footer.description": "السوق العالمي للفن والموسيقى والسينما، مدعومًا بواسطة Pi Network.",
-      "footer.explore": "استكشف",
-      "footer.company": "المنظمة",
-      "footer.contact": "تواصل",
-      "footer.rights": "© 2026 WorldArts. جميع الحقوق محفوظة."
-    },
-
-    zh: {
-      "accessibility.skip": "跳转到主要内容",
-      "language.label": "选择语言",
-      "theme.change": "切换主题",
-      "nav.menu": "菜单",
-
-      "nav.home": "首页",
-      "nav.gallery": "画廊",
-      "nav.artists": "艺术家",
-      "nav.marketplace": "市场",
-      "nav.about": "关于我们",
-      "nav.contact": "联系我们",
-      "nav.connect": "使用 Pi 连接",
-
-      "hero.eyebrow": "全球艺术市场",
-      "hero.title": "在<em>世界任何角落</em>发现、收藏与出售艺术品",
-      "hero.subtitle": "WorldArts 连接艺术家与收藏家，支持 Pi Network 和 WART 支付。",
-      "hero.connect": "使用 Pi 连接",
-      "hero.explore": "浏览画廊",
-      "hero.stats.countries": "国家",
-      "hero.stats.languages": "语言",
-      "hero.stats.payments": "支付",
-      "hero.note": "仅支持 Pi 与 WART — 不支持美元或 USDT",
-
-      "features.eyebrow": "您可以做什么",
-      "features.title": "一个应用，汇聚世界艺术",
-      "features.visual": "视觉",
-      "features.audio": "音频",
-      "features.motion": "视频",
-      "features.trade": "交易",
-      "features.art.title": "发现艺术",
-      "features.art.text": "浏览来自全球艺术家的作品。",
-      "features.gallery": "画廊",
-      "features.music.title": "发现音乐",
-      "features.music.text": "聆听并支持创作者。",
-      "features.videos.title": "发现视频",
-      "features.videos.text": "探索视频作品。",
-      "features.pi.title": "使用 Pi 买卖",
-      "features.pi.text": "通过 Pi 或 WART 完成交易。",
-      "features.marketplace": "市场",
-
-      "gallery.eyebrow": "精选",
-      "gallery.title": "画廊墙",
-      "gallery.loading": "正在加载作品...",
-      "gallery.empty": "目前没有可用作品。",
-      "gallery.error": "目前无法加载画廊。",
-      "gallery.buyPi": "使用 Pi 购买",
-      "gallery.buyWart": "使用 WART 购买",
-
-      "artists.eyebrow": "社区",
-      "artists.title": "精选艺术家",
-      "artists.aline.origin": "布琼布拉，布隆迪",
-      "artists.aline.bio": "探索不同艺术技巧以及大湖地区传统的画家。",
-      "artists.kenji.origin": "大阪，日本",
-      "artists.kenji.bio": "将传统琴和电子声音融合的作曲家。",
-      "artists.samira.origin": "开罗，埃及",
-      "artists.samira.bio": "记录尼罗河谷工匠的电影导演。",
-
-      "about.eyebrow": "我们的使命",
-      "about.title": "艺术作为共同语言",
-      "about.text1": "WorldArts 将来自世界各地的创作者和收藏家汇聚在一起。",
-      "about.text2": "应用支持六种语言以及 Pi Network 和 WART 支付。",
-
-      "payment.eyebrow": "支付",
-      "payment.title": "无国界艺术的统一货币",
-      "payment.text": "WorldArts 使用 Pi Network 或 WART 支付。",
-      "payment.pi": "Pi Network",
-      "payment.wart": "WorldArts Token",
-      "payment.noFiat": "不支持 USD · 不支持 USDT",
-
-      "pi.auth.title": "Pi 身份验证",
-      "pi.auth.text": "连接您的 Pi 账户以进行支付。",
-      "pi.auth.connect": "使用 Pi 连接",
-      "pi.status.disconnected": "未连接",
-      "pi.status.connecting": "正在连接 Pi...",
-      "pi.status.connected": "已连接 Pi",
-      "pi.status.waiting": "— 等待连接 —",
-
-      "contact.eyebrow": "联系我们",
-      "contact.title": "有问题想问 WorldArts 团队？",
-      "contact.form.name": "您的姓名",
-      "contact.form.email": "您的邮箱",
-      "contact.form.message": "您的留言",
-      "contact.form.send": "发送消息",
-      "contact.form.sent": "感谢，您的消息已收到。",
-
-      "modal.close": "关闭",
-      "modal.login.title": "Pi 登录",
-      "modal.login.text": "使用您的 Pi 账户认证。",
-      "modal.login.action": "使用 Pi 继续",
-      "modal.payment.title": "确认付款",
-      "modal.payment.text": "该作品将通过 Pi SDK 支付。",
-      "modal.payment.action": "使用 Pi 付款",
-
-      "footer.description": "全球艺术、音乐和电影市场，由 Pi Network 提供支持。",
-      "footer.explore": "探索",
-      "footer.company": "组织",
-      "footer.contact": "联系我们",
-      "footer.rights": "© 2026 WorldArts. 版权所有。"
-    }
-  };
-
-
-  /* =======================================================
-     UTILITAIRES
-     ======================================================= */
-
-  const $ = (id) => document.getElementById(id);
-
-  function currentLanguage() {
-    return localStorage.getItem("worldarts_lang") || "fr";
+   Gère : thème clair/sombre, langue (i18n), menu mobile,
+   connexion Pi (Pi SDK), paiements Pi, modales, formulaire
+   de contact, animations au scroll.
+   ============================================================ */
+
+/* ---------------------------------------------------------
+   1. CONFIGURATION
+   --------------------------------------------------------- */
+
+// ⚠️ Remplace par l'URL réelle de ton backend une fois déployé sur Render
+const API_URL = "https://worldarts-backend.onrender.com";
+
+// ⚠️ Passe à false uniquement après validation par le Pi Core Team (mainnet)
+const PI_SANDBOX = true;
+
+let piUser = null;
+let currentLang = localStorage.getItem("worldarts_lang") || "fr";
+
+/* ---------------------------------------------------------
+   2. TRADUCTIONS (FR / EN / RN / SW / AR / ZH)
+   --------------------------------------------------------- */
+
+const translations = {
+  fr: {
+    "nav.home": "Accueil", "nav.gallery": "Galerie", "nav.artists": "Artistes",
+    "nav.marketplace": "Marché", "nav.about": "À propos", "nav.contact": "Contact",
+    "nav.connect": "Se connecter avec Pi",
+    "hero.eyebrow": "Marché d'art mondial",
+    "hero.title": "Découvrez, collectionnez et vendez de l'art <em>partout dans le monde</em>",
+    "hero.subtitle": "WorldArts réunit artistes et collectionneurs autour d'œuvres, de musique et de vidéos, avec des paiements en Pi Network et en jeton WART.",
+    "hero.connect": "Se connecter avec Pi", "hero.explore": "Explorer la galerie",
+    "hero.note": "Paiements exclusivement en π (Pi) et WART — aucun dollar, aucun USDT",
+    "features.eyebrow": "Ce que vous pouvez faire", "features.title": "Une seule application, tout l'art du monde",
+    "features.art.title": "Découvrir l'art", "features.art.text": "Parcourez des œuvres originales issues d'artistes émergents et confirmés du monde entier.",
+    "features.music.title": "Découvrir la musique", "features.music.text": "Écoutez et soutenez des créateurs musicaux indépendants directement depuis la plateforme.",
+    "features.videos.title": "Découvrir les vidéos", "features.videos.text": "Explorez des créations vidéo et des performances filmées par des artistes du monde entier.",
+    "features.pi.title": "Acheter & vendre avec Pi", "features.pi.text": "Réalisez chaque transaction en toute sécurité avec Pi Network ou le jeton WART.",
+    "steps.eyebrow": "Étapes", "steps.title": "Comment fonctionne WorldArts",
+    "steps.one.title": "Créer un profil", "steps.one.text": "Inscrivez-vous en tant qu'artiste ou collectionneur en quelques secondes.",
+    "steps.two.title": "Connecter son portefeuille Pi", "steps.two.text": "Authentifiez-vous avec le Pi SDK pour activer les paiements.",
+    "steps.three.title": "Publier ou parcourir", "steps.three.text": "Mettez une œuvre en vente ou parcourez la galerie mondiale.",
+    "steps.four.title": "Payer en Pi ou WART", "steps.four.text": "Concluez la transaction en toute sécurité, sans dollar ni USDT.",
+    "gallery.eyebrow": "Sélection", "gallery.title": "Le mur de la galerie",
+    "artists.eyebrow": "Communauté", "artists.title": "Artistes à l'honneur",
+    "artists.role.painter": "Peintre", "artists.role.musician": "Musicien",
+    "artists.role.filmmaker": "Cinéaste", "artists.role.sculptor": "Sculpteur",
+    "testimonials.eyebrow": "Témoignages", "testimonials.title": "Ce qu'en disent les artistes",
+    "testimonials.one.text": "« J'ai vendu ma première toile en Pi le jour même de mon inscription. »", "testimonials.one.name": "Amara K., peintre",
+    "testimonials.two.text": "« WorldArts m'a permis de toucher des collectionneurs sur trois continents. »", "testimonials.two.name": "Chen Wei, musicien",
+    "testimonials.three.text": "« Le paiement en WART est instantané, sans frais bancaires. »", "testimonials.three.name": "Fatima Z., cinéaste",
+    "payment.eyebrow": "Paiements", "payment.title": "Une monnaie pour un art sans frontières",
+    "payment.text": "Toutes les transactions WorldArts passent uniquement par Pi Network ou le jeton WART — aucun dollar, aucun USDT.",
+    "payment.pi.desc": "paiement natif via le Pi SDK", "payment.wart.desc": "jeton officiel de la place de marché WorldArts",
+    "payment.card.eyebrow": "Exemple d'œuvre", "payment.card.title": "Aube sur le lac Tanganyika",
+    "payment.card.artist": "par Amara K.", "payment.card.buy": "Acheter avec Pi",
+    "about.eyebrow": "Notre mission", "about.title": "L'art comme langage commun",
+    "about.text": "WorldArts connecte artistes et collectionneurs de toutes origines, en Kirundi, Français, Anglais, Kiswahili, Arabe et Chinois, pour que l'art voyage sans barrière de langue ni de devise.",
+    "faq.eyebrow": "Questions", "faq.title": "Foire aux questions",
+    "faq.q1.q": "Quelles devises sont acceptées ?", "faq.q1.a": "Uniquement Pi Network et le jeton WART. WorldArts n'accepte ni dollars ni USDT.",
+    "faq.q2.q": "Comment vendre une œuvre ?", "faq.q2.a": "Créez un profil artiste, connectez votre portefeuille Pi, puis publiez votre œuvre avec son prix.",
+    "faq.q3.q": "L'application fonctionne-t-elle dans le Pi Browser ?", "faq.q3.a": "Oui, WorldArts est optimisée pour le Pi Browser et conforme aux exigences du Pi Developer Portal.",
+    "faq.q4.q": "Mes données sont-elles protégées ?", "faq.q4.a": "Oui, l'authentification passe par le Pi SDK et aucune donnée bancaire n'est stockée par WorldArts.",
+    "contact.eyebrow": "Nous écrire", "contact.title": "Une question pour l'équipe WorldArts ?",
+    "contact.form.name": "Votre nom", "contact.form.email": "Votre email", "contact.form.message": "Votre message",
+    "contact.form.send": "Envoyer le message", "contact.form.sent": "Merci, votre message a bien été noté.",
+    "footer.tagline": "Le marché mondial de l'art, en Pi et en WART.", "footer.explore": "Explorer",
+    "footer.company": "WorldArts", "footer.legal": "Légal", "footer.terms": "Conditions", "footer.privacy": "Confidentialité",
+    "footer.rights": "Tous droits réservés.", "footer.built": "Propulsé par Pi Network",
+    "modal.login.title": "Connexion Pi", "modal.login.text": "Authentifiez-vous avec votre compte Pi pour accéder à votre profil WorldArts.", "modal.login.action": "Continuer avec Pi",
+    "modal.payment.title": "Confirmer le paiement", "modal.payment.text": "Cette œuvre sera payée directement via le Pi SDK. Aucune autre devise n'est acceptée.", "modal.payment.action": "Payer avec Pi"
+  },
+  en: {
+    "nav.home": "Home", "nav.gallery": "Gallery", "nav.artists": "Artists",
+    "nav.marketplace": "Marketplace", "nav.about": "About", "nav.contact": "Contact",
+    "nav.connect": "Connect with Pi",
+    "hero.eyebrow": "The world art marketplace",
+    "hero.title": "Discover, collect and sell art <em>from anywhere in the world</em>",
+    "hero.subtitle": "WorldArts brings artists and collectors together around artwork, music and videos, with payments in Pi Network and the WART token.",
+    "hero.connect": "Connect with Pi", "hero.explore": "Explore the gallery",
+    "hero.note": "Payments exclusively in π (Pi) and WART — no dollars, no USDT",
+    "features.eyebrow": "What you can do", "features.title": "One app, all the world's art",
+    "features.art.title": "Discover art", "features.art.text": "Browse original artwork from emerging and established artists worldwide.",
+    "features.music.title": "Discover music", "features.music.text": "Listen to and support independent musicians directly on the platform.",
+    "features.videos.title": "Discover videos", "features.videos.text": "Explore video creations and filmed performances from artists around the world.",
+    "features.pi.title": "Buy & sell with Pi", "features.pi.text": "Complete every transaction securely with Pi Network or the WART token.",
+    "steps.eyebrow": "Steps", "steps.title": "How WorldArts works",
+    "steps.one.title": "Create a profile", "steps.one.text": "Sign up as an artist or collector in seconds.",
+    "steps.two.title": "Connect your Pi wallet", "steps.two.text": "Authenticate with the Pi SDK to enable payments.",
+    "steps.three.title": "Publish or browse", "steps.three.text": "List an artwork for sale or browse the global gallery.",
+    "steps.four.title": "Pay in Pi or WART", "steps.four.text": "Complete the transaction securely, with no dollars or USDT.",
+    "gallery.eyebrow": "Selection", "gallery.title": "The gallery wall",
+    "artists.eyebrow": "Community", "artists.title": "Featured artists",
+    "artists.role.painter": "Painter", "artists.role.musician": "Musician",
+    "artists.role.filmmaker": "Filmmaker", "artists.role.sculptor": "Sculptor",
+    "testimonials.eyebrow": "Testimonials", "testimonials.title": "What artists say",
+    "testimonials.one.text": "\"I sold my first painting in Pi the very day I signed up.\"", "testimonials.one.name": "Amara K., painter",
+    "testimonials.two.text": "\"WorldArts let me reach collectors on three continents.\"", "testimonials.two.name": "Chen Wei, musician",
+    "testimonials.three.text": "\"Paying in WART is instant, with no bank fees.\"", "testimonials.three.name": "Fatima Z., filmmaker",
+    "payment.eyebrow": "Payments", "payment.title": "One currency for borderless art",
+    "payment.text": "Every WorldArts transaction goes through Pi Network or the WART token only — no dollars, no USDT.",
+    "payment.pi.desc": "native payment via the Pi SDK", "payment.wart.desc": "official token of the WorldArts marketplace",
+    "payment.card.eyebrow": "Sample artwork", "payment.card.title": "Dawn over Lake Tanganyika",
+    "payment.card.artist": "by Amara K.", "payment.card.buy": "Buy with Pi",
+    "about.eyebrow": "Our mission", "about.title": "Art as a common language",
+    "about.text": "WorldArts connects artists and collectors from every background, in Kirundi, French, English, Swahili, Arabic and Chinese, so art can travel without language or currency barriers.",
+    "faq.eyebrow": "Questions", "faq.title": "Frequently asked questions",
+    "faq.q1.q": "Which currencies are accepted?", "faq.q1.a": "Only Pi Network and the WART token. WorldArts accepts neither dollars nor USDT.",
+    "faq.q2.q": "How do I sell an artwork?", "faq.q2.a": "Create an artist profile, connect your Pi wallet, then publish your artwork with its price.",
+    "faq.q3.q": "Does the app work in the Pi Browser?", "faq.q3.a": "Yes, WorldArts is optimized for the Pi Browser and complies with Pi Developer Portal requirements.",
+    "faq.q4.q": "Is my data protected?", "faq.q4.a": "Yes, authentication goes through the Pi SDK and WorldArts never stores banking data.",
+    "contact.eyebrow": "Write to us", "contact.title": "A question for the WorldArts team?",
+    "contact.form.name": "Your name", "contact.form.email": "Your email", "contact.form.message": "Your message",
+    "contact.form.send": "Send message", "contact.form.sent": "Thank you, your message has been received.",
+    "footer.tagline": "The world's art marketplace, in Pi and WART.", "footer.explore": "Explore",
+    "footer.company": "WorldArts", "footer.legal": "Legal", "footer.terms": "Terms", "footer.privacy": "Privacy",
+    "footer.rights": "All rights reserved.", "footer.built": "Powered by Pi Network",
+    "modal.login.title": "Pi Login", "modal.login.text": "Authenticate with your Pi account to access your WorldArts profile.", "modal.login.action": "Continue with Pi",
+    "modal.payment.title": "Confirm payment", "modal.payment.text": "This artwork will be paid for directly via the Pi SDK. No other currency is accepted.", "modal.payment.action": "Pay with Pi"
+  },
+  rn: {
+    "nav.home": "Ahabanza", "nav.gallery": "Ivyerekanwa", "nav.artists": "Abahanzi",
+    "nav.marketplace": "Isoko", "nav.about": "Ivyerekeye", "nav.contact": "Twandikire",
+    "nav.connect": "Kwinjira na Pi",
+    "hero.eyebrow": "Isoko ry'ubuhanzi ku isi yose",
+    "hero.title": "Rondera, tora kandi ugurishe ubuhanzi <em>ahantu hose kw'isi</em>",
+    "hero.subtitle": "WorldArts ihuza abahanzi n'abatora ivyerekanwa, indirimbo n'amashusho, hakoreshwa Pi Network na WART.",
+    "hero.connect": "Kwinjira na Pi", "hero.explore": "Raba ivyerekanwa",
+    "hero.note": "Kwishura gukorwa gusa muri π (Pi) na WART — nta madolari, nta USDT",
+    "features.eyebrow": "Ivyo ushobora gukora", "features.title": "Application imwe, ubuhanzi bwose bw'isi",
+    "features.art.title": "Rondera ubuhanzi", "features.art.text": "Raba ivyerekanwa bishasha biva ku bahanzi bo kw'isi yose.",
+    "features.music.title": "Rondera indirimbo", "features.music.text": "Umviriza kandi ushigikire abahanzi b'indirimbo bigenga ukoresheje application.",
+    "features.videos.title": "Rondera amashusho", "features.videos.text": "Raba amashusho n'ibikorwa vyafashwe n'abahanzi bo kw'isi yose.",
+    "features.pi.title": "Gura & Gurisha na Pi", "features.pi.text": "Kora ivyo wagurishije canke wagurishijwe mu mutekano wose ukoresheje Pi Network canke WART.",
+    "steps.eyebrow": "Intambwe", "steps.title": "Ingene WorldArts ikora",
+    "steps.one.title": "Kurema umwidondoro", "steps.one.text": "Iyandikishe nk'umuhanzi canke nk'umuguzi mu masegonda make.",
+    "steps.two.title": "Kwinjira mu mufuko wa Pi", "steps.two.text": "Wemeze uwo uri we ukoresheje Pi SDK kugira ureke kwishura bikore.",
+    "steps.three.title": "Shira canke rondera", "steps.three.text": "Shira igikorwa cawe ku isoko canke urondere mu vyerekanwa vy'isi.",
+    "steps.four.title": "Ishura na Pi canke WART", "steps.four.text": "Rangiza igikorwa mu mutekano wose, nta madolari canke USDT.",
+    "gallery.eyebrow": "Amahitamwo", "gallery.title": "Uruzitiro rw'ivyerekanwa",
+    "artists.eyebrow": "Umuryango", "artists.title": "Abahanzi bashimwa",
+    "artists.role.painter": "Umwuzuzi", "artists.role.musician": "Umuhanzi w'indirimbo",
+    "artists.role.filmmaker": "Umukozi w'amashusho", "artists.role.sculptor": "Umucanyi",
+    "testimonials.eyebrow": "Ivyavuzwe", "testimonials.title": "Ivyo abahanzi bavuga",
+    "testimonials.one.text": "« Naragurishije igishushanyo canje ca mbere muri Pi ku musi nyene naryandikishije. »", "testimonials.one.name": "Amara K., umwuzuzi",
+    "testimonials.two.text": "« WorldArts yaramfashije gushikira abaguzi ku migabane itatu. »", "testimonials.two.name": "Chen Wei, umuhanzi w'indirimbo",
+    "testimonials.three.text": "« Kwishura muri WART biraba ako kanya, nta mafaranga y'ibanki. »", "testimonials.three.name": "Fatima Z., umukozi w'amashusho",
+    "payment.eyebrow": "Kwishura", "payment.title": "Ifaranga rimwe ku buhanzi bata mbibe",
+    "payment.text": "Ivyishurwa vyose vya WorldArts binyura gusa muri Pi Network canke WART — nta madolari, nta USDT.",
+    "payment.pi.desc": "kwishura kw'umwimbu binyuze muri Pi SDK", "payment.wart.desc": "ikaramu nyeshuri y'isoko rya WorldArts",
+    "payment.card.eyebrow": "Akarorero k'igikorwa", "payment.card.title": "Umuseke ku kiyaga Tanganyika",
+    "payment.card.artist": "na Amara K.", "payment.card.buy": "Gura na Pi",
+    "about.eyebrow": "Intumbero yacu", "about.title": "Ubuhanzi nk'ururimi rusanzwe",
+    "about.text": "WorldArts ihuza abahanzi n'abaguzi bo mu miryango yose, mu Kirundi, Igifaransa, Icongereza, Igiswahiri, Igiarabu n'Igishinwa, kugira ubuhanzi bugende ata gikingira c'ururimi canke c'ifaranga.",
+    "faq.eyebrow": "Ibibazo", "faq.title": "Ibibazo bikunze kubazwa",
+    "faq.q1.q": "Ni ifaranga irihe ryemewe?", "faq.q1.a": "Pi Network na WART gusa. WorldArts ntiyemera amadolari canke USDT.",
+    "faq.q2.q": "Ingene wogurisha igikorwa?", "faq.q2.a": "Kurema umwidondoro w'umuhanzi, winjire mu mufuko wa Pi, hanyuma ushire igikorwa cawe hamwe n'igiciro caco.",
+    "faq.q3.q": "Application ikora muri Pi Browser?", "faq.q3.a": "Ego, WorldArts yateguriwe Pi Browser kandi ikurikiza ivyo Pi Developer Portal isaba.",
+    "faq.q4.q": "Amakuru yanje ararinzwe?", "faq.q4.a": "Ego, kwemeza uwo uri we bica kuri Pi SDK, kandi nta makuru y'ibanki WorldArts ibika.",
+    "contact.eyebrow": "Twandikire", "contact.title": "Ikibazo ku bagize itsinda rya WorldArts?",
+    "contact.form.name": "Izina ryawe", "contact.form.email": "Email yawe", "contact.form.message": "Ubutumwa bwawe",
+    "contact.form.send": "Rungika ubutumwa", "contact.form.sent": "Urakoze, ubutumwa bwawe bwakiriwe.",
+    "footer.tagline": "Isoko ry'ubuhanzi ku isi yose, muri Pi na WART.", "footer.explore": "Rondera",
+    "footer.company": "WorldArts", "footer.legal": "Amategeko", "footer.terms": "Amasezerano", "footer.privacy": "Ibanga",
+    "footer.rights": "Uburenganzira bwose burazigamiwe.", "footer.built": "Ikorwa na Pi Network",
+    "modal.login.title": "Kwinjira na Pi", "modal.login.text": "Wemeze uwo uri we ukoresheje konte yawe ya Pi kugira ushikire umwidondoro wawe wa WorldArts.", "modal.login.action": "Komeza na Pi",
+    "modal.payment.title": "Emeza ivyishurwa", "modal.payment.text": "Iki gikorwa kizishurwa ata gukeka biciye muri Pi SDK. Nta yindi mafaranga yemewe.", "modal.payment.action": "Ishura na Pi"
+  },
+  sw: {
+    "nav.home": "Nyumbani", "nav.gallery": "Ghala", "nav.artists": "Wasanii",
+    "nav.marketplace": "Soko", "nav.about": "Kuhusu", "nav.contact": "Wasiliana",
+    "nav.connect": "Ungana na Pi",
+    "hero.eyebrow": "Soko la sanaa la dunia",
+    "hero.title": "Gundua, kusanya na uuze sanaa <em>kutoka popote duniani</em>",
+    "hero.subtitle": "WorldArts inaunganisha wasanii na wakusanyaji kupitia kazi za sanaa, muziki na video, kwa malipo ya Pi Network na tokeni ya WART.",
+    "hero.connect": "Ungana na Pi", "hero.explore": "Chunguza ghala",
+    "hero.note": "Malipo kwa π (Pi) na WART pekee — hakuna dola, hakuna USDT",
+    "features.eyebrow": "Unachoweza kufanya", "features.title": "Programu moja, sanaa yote ya dunia",
+    "features.art.title": "Gundua sanaa", "features.art.text": "Vinjari kazi za sanaa halisi kutoka kwa wasanii wapya na waliobobea duniani kote.",
+    "features.music.title": "Gundua muziki", "features.music.text": "Sikiliza na uwaunge mkono wasanii wa muziki huru moja kwa moja kwenye jukwaa.",
+    "features.videos.title": "Gundua video", "features.videos.text": "Chunguza kazi za video na maonyesho yaliyorekodiwa na wasanii duniani kote.",
+    "features.pi.title": "Nunua na uuze kwa Pi", "features.pi.text": "Kamilisha kila muamala kwa usalama kwa Pi Network au tokeni ya WART.",
+    "steps.eyebrow": "Hatua", "steps.title": "Jinsi WorldArts inavyofanya kazi",
+    "steps.one.title": "Unda wasifu", "steps.one.text": "Jisajili kama msanii au mkusanyaji kwa sekunde chache.",
+    "steps.two.title": "Unganisha pochi lako la Pi", "steps.two.text": "Thibitisha kwa Pi SDK ili kuwezesha malipo.",
+    "steps.three.title": "Chapisha au vinjari", "steps.three.text": "Weka kazi ya sanaa kuuzwa au vinjari ghala la dunia.",
+    "steps.four.title": "Lipa kwa Pi au WART", "steps.four.text": "Kamilisha muamala kwa usalama, bila dola wala USDT.",
+    "gallery.eyebrow": "Uteuzi", "gallery.title": "Ukuta wa ghala",
+    "artists.eyebrow": "Jamii", "artists.title": "Wasanii maalum",
+    "artists.role.painter": "Mchoraji", "artists.role.musician": "Msanii wa muziki",
+    "artists.role.filmmaker": "Mtengenezaji filamu", "artists.role.sculptor": "Mchongaji",
+    "testimonials.eyebrow": "Ushuhuda", "testimonials.title": "Wasanii wanasema nini",
+    "testimonials.one.text": "\"Niliuza mchoro wangu wa kwanza kwa Pi siku niliyojisajili.\"", "testimonials.one.name": "Amara K., mchoraji",
+    "testimonials.two.text": "\"WorldArts iliniwezesha kufikia wakusanyaji katika mabara matatu.\"", "testimonials.two.name": "Chen Wei, msanii wa muziki",
+    "testimonials.three.text": "\"Kulipa kwa WART ni papo hapo, bila ada za benki.\"", "testimonials.three.name": "Fatima Z., mtengenezaji filamu",
+    "payment.eyebrow": "Malipo", "payment.title": "Sarafu moja kwa sanaa isiyo na mipaka",
+    "payment.text": "Miamala yote ya WorldArts hupitia Pi Network au tokeni ya WART pekee — hakuna dola, hakuna USDT.",
+    "payment.pi.desc": "malipo asilia kupitia Pi SDK", "payment.wart.desc": "tokeni rasmi ya soko la WorldArts",
+    "payment.card.eyebrow": "Mfano wa kazi", "payment.card.title": "Alfajiri juu ya Ziwa Tanganyika",
+    "payment.card.artist": "na Amara K.", "payment.card.buy": "Nunua kwa Pi",
+    "about.eyebrow": "Dhamira yetu", "about.title": "Sanaa kama lugha ya pamoja",
+    "about.text": "WorldArts inaunganisha wasanii na wakusanyaji wa asili zote, kwa Kirundi, Kifaransa, Kiingereza, Kiswahili, Kiarabu na Kichina, ili sanaa isafiri bila kizuizi cha lugha au sarafu.",
+    "faq.eyebrow": "Maswali", "faq.title": "Maswali yanayoulizwa mara kwa mara",
+    "faq.q1.q": "Ni sarafu zipi zinazokubalika?", "faq.q1.a": "Pi Network na tokeni ya WART pekee. WorldArts haikubali dola wala USDT.",
+    "faq.q2.q": "Ninawezaje kuuza kazi ya sanaa?", "faq.q2.a": "Unda wasifu wa msanii, unganisha pochi lako la Pi, kisha chapisha kazi yako pamoja na bei yake.",
+    "faq.q3.q": "Programu inafanya kazi kwenye Pi Browser?", "faq.q3.a": "Ndiyo, WorldArts imeboreshwa kwa Pi Browser na inazingatia mahitaji ya Pi Developer Portal.",
+    "faq.q4.q": "Data yangu inalindwa?", "faq.q4.a": "Ndiyo, uthibitishaji hupitia Pi SDK na WorldArts haihifadhi data ya benki kamwe.",
+    "contact.eyebrow": "Tuandikie", "contact.title": "Una swali kwa timu ya WorldArts?",
+    "contact.form.name": "Jina lako", "contact.form.email": "Barua pepe yako", "contact.form.message": "Ujumbe wako",
+    "contact.form.send": "Tuma ujumbe", "contact.form.sent": "Asante, ujumbe wako umepokelewa.",
+    "footer.tagline": "Soko la sanaa la dunia, kwa Pi na WART.", "footer.explore": "Chunguza",
+    "footer.company": "WorldArts", "footer.legal": "Kisheria", "footer.terms": "Masharti", "footer.privacy": "Faragha",
+    "footer.rights": "Haki zote zimehifadhiwa.", "footer.built": "Inaendeshwa na Pi Network",
+    "modal.login.title": "Kuingia kwa Pi", "modal.login.text": "Thibitisha kwa akaunti yako ya Pi ili kufikia wasifu wako wa WorldArts.", "modal.login.action": "Endelea na Pi",
+    "modal.payment.title": "Thibitisha malipo", "modal.payment.text": "Kazi hii italipwa moja kwa moja kupitia Pi SDK. Hakuna sarafu nyingine inayokubalika.", "modal.payment.action": "Lipa kwa Pi"
+  },
+  ar: {
+    "nav.home": "الرئيسية", "nav.gallery": "المعرض", "nav.artists": "الفنانون",
+    "nav.marketplace": "السوق", "nav.about": "من نحن", "nav.contact": "اتصل بنا",
+    "nav.connect": "تسجيل الدخول عبر Pi",
+    "hero.eyebrow": "سوق الفن العالمي",
+    "hero.title": "اكتشف واجمع وبِع الفن <em>من أي مكان في العالم</em>",
+    "hero.subtitle": "يجمع WorldArts الفنانين وهواة الجمع حول الأعمال الفنية والموسيقى والفيديوهات، بمدفوعات عبر Pi Network وعملة WART.",
+    "hero.connect": "تسجيل الدخول عبر Pi", "hero.explore": "استكشف المعرض",
+    "hero.note": "المدفوعات حصراً بعملة π (Pi) و WART — لا دولار ولا USDT",
+    "features.eyebrow": "ما يمكنك فعله", "features.title": "تطبيق واحد، كل فن العالم",
+    "features.art.title": "اكتشف الفن", "features.art.text": "تصفح أعمالاً فنية أصلية من فنانين ناشئين ومعروفين حول العالم.",
+    "features.music.title": "اكتشف الموسيقى", "features.music.text": "استمع وادعم موسيقيين مستقلين مباشرة عبر المنصة.",
+    "features.videos.title": "اكتشف الفيديوهات", "features.videos.text": "استكشف أعمال فيديو وعروضاً مصوَّرة من فنانين حول العالم.",
+    "features.pi.title": "اشترِ وبِع عبر Pi", "features.pi.text": "أتمم كل معاملة بأمان عبر Pi Network أو عملة WART.",
+    "steps.eyebrow": "الخطوات", "steps.title": "كيف يعمل WorldArts",
+    "steps.one.title": "أنشئ ملفك الشخصي", "steps.one.text": "سجّل كفنان أو هاوٍ للجمع في ثوانٍ.",
+    "steps.two.title": "اربط محفظة Pi", "steps.two.text": "وثّق هويتك عبر Pi SDK لتفعيل المدفوعات.",
+    "steps.three.title": "انشر أو تصفح", "steps.three.text": "اعرض عملاً فنياً للبيع أو تصفح المعرض العالمي.",
+    "steps.four.title": "ادفع بـ Pi أو WART", "steps.four.text": "أتمم المعاملة بأمان، دون دولار أو USDT.",
+    "gallery.eyebrow": "مختارات", "gallery.title": "جدار المعرض",
+    "artists.eyebrow": "المجتمع", "artists.title": "فنانون مميزون",
+    "artists.role.painter": "رسام", "artists.role.musician": "موسيقي",
+    "artists.role.filmmaker": "صانع أفلام", "artists.role.sculptor": "نحّات",
+    "testimonials.eyebrow": "الشهادات", "testimonials.title": "ماذا يقول الفنانون",
+    "testimonials.one.text": "«بعتُ لوحتي الأولى بعملة Pi في نفس يوم تسجيلي.»", "testimonials.one.name": "أمارا ك.، رسامة",
+    "testimonials.two.text": "«مكنني WorldArts من الوصول إلى هواة جمع في ثلاث قارات.»", "testimonials.two.name": "تشن وي، موسيقي",
+    "testimonials.three.text": "«الدفع بعملة WART فوري، دون رسوم بنكية.»", "testimonials.three.name": "فاطمة ز.، صانعة أفلام",
+    "payment.eyebrow": "المدفوعات", "payment.title": "عملة واحدة لفن بلا حدود",
+    "payment.text": "تمر جميع معاملات WorldArts حصراً عبر Pi Network أو عملة WART — لا دولار ولا USDT.",
+    "payment.pi.desc": "دفع أصلي عبر Pi SDK", "payment.wart.desc": "العملة الرسمية لسوق WorldArts",
+    "payment.card.eyebrow": "نموذج عمل فني", "payment.card.title": "الفجر فوق بحيرة تنجانيقا",
+    "payment.card.artist": "بواسطة أمارا ك.", "payment.card.buy": "اشترِ عبر Pi",
+    "about.eyebrow": "مهمتنا", "about.title": "الفن كلغة مشتركة",
+    "about.text": "يربط WorldArts فنانين وهواة جمع من كل الخلفيات، بالكيروندية والفرنسية والإنجليزية والسواحلية والعربية والصينية، ليسافر الفن دون حواجز لغوية أو نقدية.",
+    "faq.eyebrow": "الأسئلة", "faq.title": "الأسئلة الشائعة",
+    "faq.q1.q": "ما هي العملات المقبولة؟", "faq.q1.a": "فقط Pi Network وعملة WART. لا يقبل WorldArts الدولار ولا USDT.",
+    "faq.q2.q": "كيف أبيع عملاً فنياً؟", "faq.q2.a": "أنشئ ملف فنان، اربط محفظة Pi الخاصة بك، ثم انشر عملك مع سعره.",
+    "faq.q3.q": "هل يعمل التطبيق داخل Pi Browser؟", "faq.q3.a": "نعم، WorldArts مُحسَّن لمتصفح Pi Browser ويتوافق مع متطلبات Pi Developer Portal.",
+    "faq.q4.q": "هل بياناتي محمية؟", "faq.q4.a": "نعم، تتم المصادقة عبر Pi SDK ولا يخزّن WorldArts أي بيانات مصرفية.",
+    "contact.eyebrow": "راسلنا", "contact.title": "لديك سؤال لفريق WorldArts؟",
+    "contact.form.name": "اسمك", "contact.form.email": "بريدك الإلكتروني", "contact.form.message": "رسالتك",
+    "contact.form.send": "إرسال الرسالة", "contact.form.sent": "شكراً، تم استلام رسالتك.",
+    "footer.tagline": "سوق الفن العالمي، بعملتي Pi و WART.", "footer.explore": "استكشف",
+    "footer.company": "WorldArts", "footer.legal": "قانوني", "footer.terms": "الشروط", "footer.privacy": "الخصوصية",
+    "footer.rights": "جميع الحقوق محفوظة.", "footer.built": "مدعوم من Pi Network",
+    "modal.login.title": "تسجيل الدخول عبر Pi", "modal.login.text": "وثّق هويتك عبر حساب Pi للوصول إلى ملفك في WorldArts.", "modal.login.action": "المتابعة عبر Pi",
+    "modal.payment.title": "تأكيد الدفع", "modal.payment.text": "سيُدفع ثمن هذا العمل مباشرة عبر Pi SDK. لا تُقبل أي عملة أخرى.", "modal.payment.action": "ادفع عبر Pi"
+  },
+  zh: {
+    "nav.home": "首页", "nav.gallery": "画廊", "nav.artists": "艺术家",
+    "nav.marketplace": "市场", "nav.about": "关于我们", "nav.contact": "联系我们",
+    "nav.connect": "使用 Pi 登录",
+    "hero.eyebrow": "全球艺术市场",
+    "hero.title": "发现、收藏并出售来自<em>世界各地</em>的艺术品",
+    "hero.subtitle": "WorldArts 将艺术家与收藏家聚集在一起，围绕艺术品、音乐和视频，使用 Pi Network 和 WART 代币进行支付。",
+    "hero.connect": "使用 Pi 登录", "hero.explore": "探索画廊",
+    "hero.note": "仅支持 π（Pi）和 WART 支付 —— 不支持美元，不支持 USDT",
+    "features.eyebrow": "您可以做什么", "features.title": "一个应用，汇集世界艺术",
+    "features.art.title": "发现艺术", "features.art.text": "浏览来自全球新兴及知名艺术家的原创作品。",
+    "features.music.title": "发现音乐", "features.music.text": "在平台上直接聆听并支持独立音乐创作者。",
+    "features.videos.title": "发现视频", "features.videos.text": "探索来自全球艺术家的视频创作和表演录像。",
+    "features.pi.title": "使用 Pi 买卖", "features.pi.text": "通过 Pi Network 或 WART 代币安全完成每笔交易。",
+    "steps.eyebrow": "步骤", "steps.title": "WorldArts 如何运作",
+    "steps.one.title": "创建资料", "steps.one.text": "几秒钟内以艺术家或收藏家身份注册。",
+    "steps.two.title": "连接您的 Pi 钱包", "steps.two.text": "通过 Pi SDK 进行身份验证以启用支付功能。",
+    "steps.three.title": "发布或浏览", "steps.three.text": "上架出售一件作品，或浏览全球画廊。",
+    "steps.four.title": "使用 Pi 或 WART 支付", "steps.four.text": "安全完成交易，无需美元或 USDT。",
+    "gallery.eyebrow": "精选", "gallery.title": "画廊墙",
+    "artists.eyebrow": "社区", "artists.title": "精选艺术家",
+    "artists.role.painter": "画家", "artists.role.musician": "音乐家",
+    "artists.role.filmmaker": "电影制作人", "artists.role.sculptor": "雕塑家",
+    "testimonials.eyebrow": "用户评价", "testimonials.title": "艺术家怎么说",
+    "testimonials.one.text": "「注册当天我就用 Pi 卖出了我的第一幅画。」", "testimonials.one.name": "Amara K.，画家",
+    "testimonials.two.text": "「WorldArts 让我接触到三大洲的收藏家。」", "testimonials.two.name": "Chen Wei，音乐家",
+    "testimonials.three.text": "「用 WART 支付即时到账，无银行手续费。」", "testimonials.three.name": "Fatima Z.，电影制作人",
+    "payment.eyebrow": "支付方式", "payment.title": "无国界艺术的统一货币",
+    "payment.text": "所有 WorldArts 交易仅通过 Pi Network 或 WART 代币进行 —— 不支持美元，不支持 USDT。",
+    "payment.pi.desc": "通过 Pi SDK 原生支付", "payment.wart.desc": "WorldArts 市场的官方代币",
+    "payment.card.eyebrow": "作品示例", "payment.card.title": "坦噶尼喀湖的黎明",
+    "payment.card.artist": "作者：Amara K.", "payment.card.buy": "使用 Pi 购买",
+    "about.eyebrow": "我们的使命", "about.title": "艺术作为共同语言",
+    "about.text": "WorldArts 连接来自各种背景的艺术家和收藏家，支持基隆迪语、法语、英语、斯瓦希里语、阿拉伯语和中文，让艺术跨越语言和货币的壁垒。",
+    "faq.eyebrow": "常见问题", "faq.title": "常见问题解答",
+    "faq.q1.q": "接受哪些货币？", "faq.q1.a": "仅限 Pi Network 和 WART 代币。WorldArts 不接受美元或 USDT。",
+    "faq.q2.q": "如何出售作品？", "faq.q2.a": "创建艺术家资料，连接您的 Pi 钱包，然后发布您的作品并标注价格。",
+    "faq.q3.q": "该应用能在 Pi Browser 中运行吗？", "faq.q3.a": "可以，WorldArts 已针对 Pi Browser 进行优化，并符合 Pi Developer Portal 的要求。",
+    "faq.q4.q": "我的数据受保护吗？", "faq.q4.a": "是的，身份验证通过 Pi SDK 完成，WorldArts 从不存储任何银行数据。",
+    "contact.eyebrow": "给我们留言", "contact.title": "对 WorldArts 团队有疑问？",
+    "contact.form.name": "您的姓名", "contact.form.email": "您的邮箱", "contact.form.message": "您的留言",
+    "contact.form.send": "发送留言", "contact.form.sent": "谢谢，我们已收到您的留言。",
+    "footer.tagline": "全球艺术市场，支持 Pi 与 WART。", "footer.explore": "探索",
+    "footer.company": "WorldArts", "footer.legal": "法律", "footer.terms": "条款", "footer.privacy": "隐私",
+    "footer.rights": "版权所有。", "footer.built": "由 Pi Network 提供支持",
+    "modal.login.title": "Pi 登录", "modal.login.text": "使用您的 Pi 账户进行身份验证以访问您的 WorldArts 资料。", "modal.login.action": "使用 Pi 继续",
+    "modal.payment.title": "确认支付", "modal.payment.text": "此作品将直接通过 Pi SDK 支付。不接受任何其他货币。", "modal.payment.action": "使用 Pi 支付"
   }
+};
 
-  function t(key) {
-    const lang = currentLanguage();
-    return (
-      translations[lang]?.[key] ??
-      translations.fr[key] ??
-      key
-    );
-  }
+/* ---------------------------------------------------------
+   3. INITIALISATION GÉNÉRALE
+   --------------------------------------------------------- */
 
-  function escapeHtml(value) {
-    return String(value ?? "").replace(/[&<>"']/g, (char) => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;"
-    }[char]));
-  }
+document.addEventListener("DOMContentLoaded", () => {
+  initTheme();
+  initLanguage();
+  initMenu();
+  initModals();
+  initButtons();
+  initContactForm();
+  initScrollReveal();
+  initNavHighlight();
+  restoreSession();
+  initPiSdk();
+});
 
+/* ---------------------------------------------------------
+   4. THÈME CLAIR / SOMBRE
+   --------------------------------------------------------- */
 
-  /* =======================================================
-     INTERNATIONALISATION
-     ======================================================= */
+function initTheme() {
+  const saved = localStorage.getItem("worldarts_theme");
+  const theme = saved || "light";
+  document.body.setAttribute("data-theme", theme);
 
-  function applyLanguage(lang) {
-    if (!translations[lang]) {
-      lang = "fr";
-    }
-
-    document.documentElement.lang = lang;
-    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
-
-    document.querySelectorAll("[data-i18n]").forEach((element) => {
-      const key = element.getAttribute("data-i18n");
-      const value = translations[lang][key];
-
-      if (value !== undefined) {
-        element.innerHTML = value;
-      }
+  const themeBtn = document.getElementById("themeToggle");
+  if (themeBtn) {
+    themeBtn.addEventListener("click", () => {
+      const current = document.body.getAttribute("data-theme");
+      const next = current === "dark" ? "light" : "dark";
+      document.body.setAttribute("data-theme", next);
+      localStorage.setItem("worldarts_theme", next);
     });
+  }
+}
 
-    document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
-      const key = element.getAttribute("data-i18n-placeholder");
-      const value = translations[lang][key];
+/* ---------------------------------------------------------
+   5. LANGUE / I18N
+   --------------------------------------------------------- */
 
-      if (value !== undefined) {
-        element.setAttribute("placeholder", value);
-      }
+function applyTranslations(lang) {
+  const dict = translations[lang] || translations.fr;
+
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    const key = el.getAttribute("data-i18n");
+    if (dict[key]) {
+      el.innerHTML = dict[key];
+    }
+  });
+
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+    const key = el.getAttribute("data-i18n-placeholder");
+    if (dict[key]) {
+      el.setAttribute("placeholder", dict[key]);
+    }
+  });
+
+  document.documentElement.setAttribute("lang", lang);
+  document.documentElement.setAttribute(
+    "dir",
+    lang === "ar" ? "rtl" : "ltr"
+  );
+
+  currentLang = lang;
+  localStorage.setItem("worldarts_lang", lang);
+}
+
+function initLanguage() {
+  const select = document.getElementById("langSelect");
+  if (select) {
+    select.value = currentLang;
+    select.addEventListener("change", (e) => {
+      applyTranslations(e.target.value);
     });
-
-    document.querySelectorAll("[data-i18n-aria]").forEach((element) => {
-      const key = element.getAttribute("data-i18n-aria");
-      const value = translations[lang][key];
-
-      if (value !== undefined) {
-        element.setAttribute("aria-label", value);
-      }
-    });
-
-    const langSelect = $("langSelect");
-
-    if (langSelect) {
-      langSelect.value = lang;
-    }
-
-    localStorage.setItem("worldarts_lang", lang);
   }
+  applyTranslations(currentLang);
+}
 
+/* ---------------------------------------------------------
+   6. MENU MOBILE
+   --------------------------------------------------------- */
 
-  /* =======================================================
-     THEME
-     ======================================================= */
+function initMenu() {
+  const menuBtn = document.getElementById("menuToggle");
+  const navLinks = document.getElementById("navLinks");
 
-  function applyTheme(theme) {
-    const safeTheme = theme === "dark" ? "dark" : "light";
-
-    document.documentElement.setAttribute(
-      "data-theme",
-      safeTheme
-    );
-
-    document.body.setAttribute(
-      "data-theme",
-      safeTheme
-    );
-
-    localStorage.setItem(
-      "worldarts_theme",
-      safeTheme
-    );
-
-    const button = $("themeToggle");
-
-    if (button) {
-      button.setAttribute(
-        "aria-pressed",
-        safeTheme === "dark" ? "true" : "false"
-      );
-    }
-  }
-
-
-  /* =======================================================
-     MODALS
-     ======================================================= */
-
-  function openModal(id) {
-    const modal = $(id);
-
-    if (!modal) return;
-
-    modal.classList.add("open");
-    document.body.classList.add("modal-open");
-
-    const firstButton = modal.querySelector(
-      "button, input, textarea"
-    );
-
-    setTimeout(() => {
-      firstButton?.focus();
-    }, 50);
-  }
-
-  function closeModal(id) {
-    const modal = $(id);
-
-    if (!modal) return;
-
-    modal.classList.remove("open");
-
-    if (!document.querySelector(".modal-overlay.open")) {
-      document.body.classList.remove("modal-open");
-    }
-  }
-
-
-  /* =======================================================
-     NOTIFICATION
-     ======================================================= */
-
-  function notify(message, type = "info") {
-    let toast = $("worldartsToast");
-
-    if (!toast) {
-      toast = document.createElement("div");
-      toast.id = "worldartsToast";
-
-      toast.setAttribute("role", "status");
-      toast.setAttribute("aria-live", "polite");
-
-      toast.style.cssText = `
-        position:fixed;
-        left:50%;
-        bottom:24px;
-        transform:translateX(-50%);
-        z-index:99999;
-        padding:13px 18px;
-        border-radius:12px;
-        background:#171717;
-        color:#fff;
-        max-width:90%;
-        text-align:center;
-        box-shadow:0 10px 35px rgba(0,0,0,.28);
-        font:500 14px/1.4 system-ui,sans-serif;
-      `;
-
-      document.body.appendChild(toast);
-    }
-
-    toast.textContent = message;
-    toast.style.display = "block";
-
-    if (type === "error") {
-      toast.style.border = "1px solid rgba(220,80,80,.5)";
-    } else {
-      toast.style.border = "1px solid rgba(255,255,255,.15)";
-    }
-
-    clearTimeout(toast._timer);
-
-    toast._timer = setTimeout(() => {
-      toast.style.display = "none";
-    }, type === "error" ? 5000 : 3000);
-  }
-
-
-  /* =======================================================
-     NAVIGATION MOBILE
-     ======================================================= */
-
-  function closeMobileMenu() {
-    const navLinks = $("navLinks");
-    const burger = $("navBurger");
-
-    navLinks?.classList.remove("open");
-
-    burger?.setAttribute(
-      "aria-expanded",
-      "false"
-    );
-  }
-
-  function initMobileMenu() {
-    const burger = $("navBurger");
-    const navLinks = $("navLinks");
-
-    if (!burger || !navLinks) return;
-
-    burger.addEventListener("click", () => {
-      const isOpen = navLinks.classList.toggle("open");
-
-      burger.setAttribute(
-        "aria-expanded",
-        isOpen ? "true" : "false"
-      );
+  if (menuBtn && navLinks) {
+    menuBtn.addEventListener("click", () => {
+      navLinks.classList.toggle("open");
     });
 
     navLinks.querySelectorAll("a").forEach((link) => {
-      link.addEventListener("click", closeMobileMenu);
-    });
-
-    document.addEventListener("click", (event) => {
-      if (
-        !navLinks.contains(event.target) &&
-        !burger.contains(event.target)
-      ) {
-        closeMobileMenu();
-      }
+      link.addEventListener("click", () => {
+        navLinks.classList.remove("open");
+      });
     });
   }
+}
 
+/* ---------------------------------------------------------
+   7. MISE EN AVANT DU LIEN DE NAVIGATION ACTIF
+   --------------------------------------------------------- */
 
-  /* =======================================================
-     NAVIGATION ACTIVE + SCROLL
-     ======================================================= */
+function initNavHighlight() {
+  const sections = document.querySelectorAll("section[id]");
+  const navItems = document.querySelectorAll(".nav-links a");
 
-  function initNavigationObserver() {
-    const nav = $("siteNav");
-    const sections = document.querySelectorAll(
-      "main section[id]"
-    );
+  if (!sections.length || !navItems.length) return;
 
-    const links = document.querySelectorAll(
-      ".nav-links a[href^='#']"
-    );
-
-    window.addEventListener(
-      "scroll",
-      () => {
-        if (!nav) return;
-
-        nav.classList.toggle(
-          "is-scrolled",
-          window.scrollY > 20
-        );
-      },
-      { passive: true }
-    );
-
-    if (!("IntersectionObserver" in window)) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-
-          const id = entry.target.id;
-
-          links.forEach((link) => {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const id = entry.target.getAttribute("id");
+          navItems.forEach((link) => {
             link.classList.toggle(
               "active",
-              link.getAttribute("href") === `#${id}`
+              link.getAttribute("href") === "#" + id
             );
           });
-        });
-      },
-      {
-        rootMargin: "-35% 0px -55% 0px",
-        threshold: 0
-      }
-    );
-
-    sections.forEach((section) => {
-      observer.observe(section);
-    });
-  }
-
-
-  /* =======================================================
-     PI SDK
-     ======================================================= */
-
-  function initPiSdk() {
-    if (typeof window.Pi === "undefined") {
-      piInitialized = false;
-
-      console.warn(
-        "WorldArts: Pi SDK non disponible. Utilisez Pi Browser."
-      );
-
-      return false;
-    }
-
-    try {
-      window.Pi.init({
-        version: "2.0",
-        sandbox: PI_SANDBOX
+        }
       });
+    },
+    { rootMargin: "-40% 0px -50% 0px" }
+  );
 
-      piInitialized = true;
+  sections.forEach((section) => observer.observe(section));
+}
 
-      return true;
+/* ---------------------------------------------------------
+   8. ANIMATIONS AU SCROLL (.reveal)
+   --------------------------------------------------------- */
 
-    } catch (error) {
-      piInitialized = false;
+function initScrollReveal() {
+  const items = document.querySelectorAll(".reveal");
+  if (!items.length) return;
 
-      console.error(
-        "WorldArts Pi.init:",
-        error
-      );
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("visible");
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.15 }
+  );
 
-      return false;
-    }
-  }
+  items.forEach((item) => observer.observe(item));
+}
 
+/* ---------------------------------------------------------
+   9. MODALES
+   --------------------------------------------------------- */
 
-  /* =======================================================
-     PI STATUS
-     ======================================================= */
+function openModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.add("open");
+}
 
-  function updatePiStatus(connected, connecting = false) {
-    const status = $("piStatus");
-    const statusText = $("piStatusText");
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.remove("open");
+}
 
-    if (!status || !statusText) return;
+function initModals() {
+  document.querySelectorAll("[data-close]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      closeModal(btn.getAttribute("data-close"));
+    });
+  });
 
-    status.classList.toggle(
-      "connected",
-      Boolean(connected)
-    );
-
-    if (connecting) {
-      statusText.textContent = t(
-        "pi.status.connecting"
-      );
-      return;
-    }
-
-    if (connected) {
-      statusText.textContent =
-        "@" + (piUser?.username || "Pi");
-    } else {
-      statusText.textContent =
-        t("pi.status.disconnected");
-    }
-  }
-
-
-  /* =======================================================
-     PI BUTTONS
-     ======================================================= */
-
-  function updatePiButtons() {
-    const buttons = [
-      $("piConnectBtn"),
-      $("heroConnectBtn"),
-      $("piPanelConnectBtn"),
-      $("modalConnectBtn")
-    ].filter(Boolean);
-
-    buttons.forEach((button) => {
-      if (piUser) {
-        button.textContent =
-          "@" + (piUser.username || "Pi");
-
-        button.dataset.connected = "true";
-
-      } else {
-        button.textContent =
-          t("nav.connect");
-
-        button.dataset.connected = "false";
+  document.querySelectorAll(".modal-overlay").forEach((overlay) => {
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) {
+        overlay.classList.remove("open");
       }
     });
-  }
-
-
-  /* =======================================================
-     PI INCOMPLETE PAYMENT
-     ======================================================= */
-
-  function onIncompletePaymentFound(payment) {
-    console.warn(
-      "WorldArts: paiement Pi incomplet:",
-      payment
-    );
-
-    if (
-      API_BASE &&
-      payment &&
-      payment.identifier
-    ) {
-      fetch(
-        API_BASE + "/payments/incomplete",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            paymentId: payment.identifier,
-            payment
-          })
-        }
-      ).catch((error) => {
-        console.warn(
-          "Impossible d'enregistrer le paiement incomplet:",
-          error
-        );
-      });
-    }
-  }
-
-
-  /* =======================================================
-     CONNEXION PI
-     ======================================================= */
-
-  async function connectWithPi() {
-
-    if (piUser) {
-      notify(
-        "@" + (piUser.username || "Pi")
-      );
-      return piUser;
-    }
-
-    if (!initPiSdk()) {
-      notify(
-        "Le Pi SDK est disponible dans Pi Browser.",
-        "error"
-      );
-
-      return null;
-    }
-
-    updatePiStatus(
-      false,
-      true
-    );
-
-    const buttons = [
-      $("piConnectBtn"),
-      $("heroConnectBtn"),
-      $("piPanelConnectBtn"),
-      $("modalConnectBtn")
-    ].filter(Boolean);
-
-    buttons.forEach((button) => {
-      button.disabled = true;
-    });
-
-    try {
-
-      const auth = await window.Pi.authenticate(
-        [
-          "username",
-          "payments"
-        ],
-        onIncompletePaymentFound
-      );
-
-      if (
-        !auth ||
-        !auth.user
-      ) {
-        throw new Error(
-          "Pi authentication returned no user."
-        );
-      }
-
-      piUser = auth.user;
-
-      updatePiStatus(true);
-      updatePiButtons();
-
-      closeModal("loginModal");
-
-      notify(
-        "Connexion Pi réussie."
-      );
-
-      return piUser;
-
-    } catch (error) {
-
-      console.error(
-        "WorldArts Pi authentication:",
-        error
-      );
-
-      piUser = null;
-
-      updatePiStatus(false);
-      updatePiButtons();
-
-      notify(
-        "Connexion Pi annulée ou impossible.",
-        "error"
-      );
-
-      return null;
-
-    } finally {
-
-      buttons.forEach((button) => {
-        button.disabled = false;
-      });
-    }
-  }
-
-
-  /* =======================================================
-     BACKEND PAYMENT — APPROVAL
-     ======================================================= */
-
-  async function approvePaymentOnServer(
-    paymentId
-  ) {
-
-    if (!API_BASE) {
-      throw new Error(
-        "Backend WorldArts non configuré."
-      );
-    }
-
-    const response = await fetch(
-      API_BASE + "/payments/approve",
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json"
-        },
-
-        body: JSON.stringify({
-          paymentId
-        })
-      }
-    );
-
-    if (!response.ok) {
-
-      let details = "";
-
-      try {
-        details = await response.text();
-      } catch (_) {}
-
-      throw new Error(
-        `Server approval failed (${response.status}) ${details}`
-      );
-    }
-
-    return response.json().catch(
-      () => ({ success: true })
-    );
-  }
-
-
-  /* =======================================================
-     BACKEND PAYMENT — COMPLETION
-     ======================================================= */
-
-  async function completePaymentOnServer(
-    paymentId,
-    txid
-  ) {
-
-    if (!API_BASE) {
-      throw new Error(
-        "Backend WorldArts non configuré."
-      );
-    }
-
-    const response = await fetch(
-      API_BASE + "/payments/complete",
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json"
-        },
-
-        body: JSON.stringify({
-          paymentId,
-          txid
-        })
-      }
-    );
-
-    if (!response.ok) {
-
-      let details = "";
-
-      try {
-        details = await response.text();
-      } catch (_) {}
-
-      throw new Error(
-        `Server completion failed (${response.status}) ${details}`
-      );
-    }
-
-    return response.json().catch(
-      () => ({ success: true })
-    );
-  }
-
-
-  /* =======================================================
-     PI PAYMENT
-     ======================================================= */
-
-  async function payWithPi(
-    amount,
-    memo,
-    metadata = {}
-  ) {
-
-    const numericAmount =
-      Number(amount);
-
-    if (
-      !Number.isFinite(numericAmount) ||
-      numericAmount <= 0
-    ) {
-      notify(
-        "Montant Pi invalide.",
-        "error"
-      );
-
-      return false;
-    }
-
-    if (!initPiSdk()) {
-      notify(
-        "Le paiement Pi nécessite Pi Browser.",
-        "error"
-      );
-
-      return false;
-    }
-
-    if (!piUser) {
-
-      closeModal("paymentModal");
-      openModal("loginModal");
-
-      notify(
-        "Connectez-vous d'abord avec Pi.",
-        "error"
-      );
-
-      return false;
-    }
-
-    currentPayment = {
-      amount: numericAmount,
-      memo: memo || "WorldArts",
-      metadata
-    };
-
-    try {
-
-      window.Pi.createPayment(
-        {
-          amount: numericAmount,
-
-          memo:
-            memo ||
-            "WorldArts",
-
-          metadata: Object.assign(
-            {
-              app: "WorldArts",
-              username:
-                piUser.username || ""
-            },
-            metadata
-          )
-        },
-
-        {
-
-          /* -----------------------------------------------
-             Pi demande au serveur d'approuver
-             ----------------------------------------------- */
-
-          onReadyForServerApproval:
-            async function (paymentId) {
-
-              console.log(
-                "Pi payment approval:",
-                paymentId
-              );
-
-              try {
-
-                await approvePaymentOnServer(
-                  paymentId
-                );
-
-                notify(
-                  "Paiement Pi approuvé par WorldArts."
-                );
-
-              } catch (error) {
-
-                console.error(
-                  "Pi approval error:",
-                  error
-                );
-
-                notify(
-                  "Le serveur n'a pas pu approuver le paiement Pi.",
-                  "error"
-                );
-              }
-            },
-
-
-          /* -----------------------------------------------
-             Pi demande au serveur de compléter
-             ----------------------------------------------- */
-
-          onReadyForServerCompletion:
-            async function (
-              paymentId,
-              txid
-            ) {
-
-              console.log(
-                "Pi payment completion:",
-                paymentId,
-                txid
-              );
-
-              try {
-
-                await completePaymentOnServer(
-                  paymentId,
-                  txid
-                );
-
-                notify(
-                  "Paiement Pi terminé avec succès."
-                );
-
-                currentPayment = null;
-
-              } catch (error) {
-
-                console.error(
-                  "Pi completion error:",
-                  error
-                );
-
-                notify(
-                  "Paiement effectué, mais confirmation serveur impossible.",
-                  "error"
-                );
-              }
-            },
-
-
-          /* -----------------------------------------------
-             Paiement annulé
-             ----------------------------------------------- */
-
-          onCancel:
-            function (paymentId) {
-
-              console.log(
-                "Paiement Pi annulé:",
-                paymentId
-              );
-
-              notify(
-                "Paiement Pi annulé."
-              );
-            },
-
-
-          /* -----------------------------------------------
-             Erreur Pi
-             ----------------------------------------------- */
-
-          onError:
-            function (
-              error,
-              payment
-            ) {
-
-              console.error(
-                "Pi payment error:",
-                error,
-                payment
-              );
-
-              notify(
-                "Une erreur est survenue pendant le paiement Pi.",
-                "error"
-              );
-            }
-        }
-      );
-
-      return true;
-
-    } catch (error) {
-
-      console.error(
-        "Pi.createPayment:",
-        error
-      );
-
-      notify(
-        "Impossible de lancer le paiement Pi.",
-        "error"
-      );
-
-      return false;
-    }
-  }
-
-
-  /* =======================================================
-     GALERIE
-     ======================================================= */
-
-  function getArtworkImage(artwork) {
-    return (
-      artwork.imageUrl ||
-      artwork.image ||
-      artwork.image_url ||
-      artwork.cover ||
-      ""
-    );
-  }
-
-  function getArtworkArtist(artwork) {
-    return (
-      artwork.artist ||
-      artwork.artistName ||
-      artwork.artist_name ||
-      "WorldArts"
-    );
-  }
-
-  function getArtworkCurrency(artwork) {
-    return String(
-      artwork.currency ||
-      artwork.token ||
-      "Pi"
-    );
-  }
-
-  function getArtworkPrice(artwork) {
-    const value =
-      artwork.price ??
-      artwork.amount ??
-      "";
-
-    return value;
-  }
-
-
-  function renderArtworks(
-    artworks,
-    container
-  ) {
-
-    if (!container) return;
-
-    if (!Array.isArray(artworks) ||
-        artworks.length === 0) {
-
-      container.innerHTML = `
-        <p class="empty-state">
-          ${escapeHtml(
-            t("gallery.empty")
-          )}
-        </p>
-      `;
-
-      return;
-    }
-
-    container.innerHTML =
-      artworks.map((artwork) => {
-
-        const title =
-          escapeHtml(
-            artwork.title ||
-            artwork.name ||
-            "WorldArts"
-          );
-
-        const artist =
-          escapeHtml(
-            getArtworkArtist(artwork)
-          );
-
-        const description =
-          escapeHtml(
-            artwork.description || ""
-          );
-
-        const image =
-          escapeHtml(
-            getArtworkImage(artwork)
-          );
-
-        const currency =
-          escapeHtml(
-            getArtworkCurrency(artwork)
-          );
-
-        const price =
-          getArtworkPrice(artwork);
-
-        const numericPrice =
-          Number(price);
-
-        const hasPrice =
-          Number.isFinite(numericPrice) &&
-          numericPrice > 0;
-
-        const safeId =
-          escapeHtml(
-            artwork.id ||
-            artwork._id ||
-            artwork.identifier ||
-            ""
-          );
-
-        return `
-          <article
-            class="artwork-card reveal"
-            data-artwork-id="${safeId}"
-          >
-
-            ${
-              image
-                ? `
-                  <img
-                    src="${image}"
-                    alt="${title}"
-                    loading="lazy"
-                  >
-                `
-                : ""
-            }
-
-            <div class="artwork-info">
-
-              <h3>${title}</h3>
-
-              <p>
-                ${artist}
-              </p>
-
-              ${
-                description
-                  ? `
-                    <p class="artwork-description">
-                      ${description}
-                    </p>
-                  `
-                  : ""
-              }
-
-              ${
-                hasPrice
-                  ? `
-                    <div class="artwork-price">
-                      ${escapeHtml(
-                        String(price)
-                      )} ${currency}
-                    </div>
-                  `
-                  : ""
-              }
-
-              ${
-                hasPrice &&
-                String(
-                  getArtworkCurrency(artwork)
-                ).toLowerCase() === "pi"
-                  ? `
-                    <div class="artwork-actions">
-
-                      <button
-                        type="button"
-                        class="btn btn-primary artwork-buy"
-                        data-price="${escapeHtml(
-                          String(price)
-                        )}"
-                        data-title="${title}"
-                        data-artwork-id="${safeId}"
-                      >
-                        ${escapeHtml(
-                          t("gallery.buyPi")
-                        )}
-                      </button>
-
-                    </div>
-                  `
-                  : ""
-              }
-
-            </div>
-
-          </article>
-        `;
-
-      }).join("");
-
-    bindArtworkButtons(container);
-    initRevealObserver();
-  }
-
-
-  function bindArtworkButtons(
-    container
-  ) {
-
-    container
-      .querySelectorAll(".artwork-buy")
-      .forEach((button) => {
-
-        button.addEventListener(
-          "click",
-          () => {
-
-            const price =
-              Number(
-                button.dataset.price
-              );
-
-            const title =
-              button.dataset.title ||
-              "WorldArts";
-
-            currentPayment = {
-              amount: price,
-
-              memo:
-                "WorldArts — " +
-                title,
-
-              metadata: {
-                artworkId:
-                  button.dataset.artworkId ||
-                  "",
-                artworkTitle:
-                  title
-              }
-            };
-
-            const paymentText =
-              document.querySelector(
-                "#paymentModal p"
-              );
-
-            if (paymentText) {
-              paymentText.textContent =
-                `${title} — ${price} Pi`;
-            }
-
-            openModal(
-              "paymentModal"
-            );
-          }
-        );
-      });
-  }
-
-
-  async function loadArtworks() {
-
-    const container =
-      document.querySelector(
-        "[data-artworks]"
-      );
-
-    if (!container) return;
-
-    container.innerHTML = `
-      <p class="loading-state">
-        ${escapeHtml(
-          t("gallery.loading")
-        )}
-      </p>
-    `;
-
-    try {
-
-      const response =
-        await fetch(
-          API_BASE + "/artworks",
-          {
-            method: "GET",
-            headers: {
-              "Accept":
-                "application/json"
-            }
-          }
-        );
-
-      if (!response.ok) {
-        throw new Error(
-          `Artwork API ${response.status}`
-        );
-      }
-
-      const data =
-        await response.json();
-
-      let artworks = [];
-
-      if (Array.isArray(data)) {
-        artworks = data;
-
-      } else if (
-        data &&
-        Array.isArray(data.artworks)
-      ) {
-        artworks = data.artworks;
-
-      } else if (
-        data &&
-        Array.isArray(data.data)
-      ) {
-        artworks = data.data;
-      }
-
-      renderArtworks(
-        artworks,
-        container
-      );
-
-    } catch (error) {
-
-      console.warn(
-        "WorldArts artworks:",
-        error
-      );
-
-      container.innerHTML = `
-        <p class="empty-state">
-          ${escapeHtml(
-            t("gallery.error")
-          )}
-        </p>
-      `;
-    }
-  }
-
-
-  /* =======================================================
-     CONTACT
-     ======================================================= */
-
-  async function submitContactForm(
-    form
-  ) {
-
-    const status =
-      $("contactStatus");
-
-    const submitButton =
-      form.querySelector(
-        'button[type="submit"]'
-      );
-
-    const name =
-      form.querySelector(
-        '[name="name"]'
-      )?.value.trim() || "";
-
-    const email =
-      form.querySelector(
-        '[name="email"]'
-      )?.value.trim() || "";
-
-    const message =
-      form.querySelector(
-        '[name="message"]'
-      )?.value.trim() || "";
-
-    if (
-      !name ||
-      !email ||
-      !message
-    ) {
-
-      notify(
-        "Veuillez remplir tous les champs.",
-        "error"
-      );
-
-      return;
-    }
-
-    const emailValid =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        .test(email);
-
-    if (!emailValid) {
-
-      notify(
-        "Veuillez entrer une adresse email valide.",
-        "error"
-      );
-
-      return;
-    }
-
-    try {
-
-      if (submitButton) {
-        submitButton.disabled = true;
-      }
-
-      const response =
-        await fetch(
-          API_BASE + "/contact",
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-              "Accept":
-                "application/json"
-            },
-
-            body: JSON.stringify({
-              name,
-              email,
-              message
-            })
-          }
-        );
-
-      if (!response.ok) {
-
-        throw new Error(
-          `Contact API ${response.status}`
-        );
-      }
-
-      if (status) {
-        status.style.display =
-          "block";
-
-        status.textContent =
-          t("contact.form.sent");
-      }
-
-      form.reset();
-
-      notify(
-        t("contact.form.sent")
-      );
-
-    } catch (error) {
-
-      console.error(
-        "WorldArts contact:",
-        error
-      );
-
-      notify(
-        "Impossible d'envoyer le message pour le moment.",
-        "error"
-      );
-
-    } finally {
-
-      if (submitButton) {
-        submitButton.disabled = false;
-      }
-    }
-  }
-
-
-  /* =======================================================
-     MODAL EVENTS
-     ======================================================= */
-
-  function initModals() {
-
-    document
-      .querySelectorAll(
-        "[data-close]"
-      )
-      .forEach((button) => {
-
-        button.addEventListener(
-          "click",
-          () => {
-
-            closeModal(
-              button.getAttribute(
-                "data-close"
-              )
-            );
-          }
-        );
-      });
-
-
-    document
-      .querySelectorAll(
-        ".modal-overlay"
-      )
-      .forEach((overlay) => {
-
-        overlay.addEventListener(
-          "click",
-          (event) => {
-
-            if (
-              event.target === overlay
-            ) {
-              overlay.classList.remove(
-                "open"
-              );
-
-              if (
-                !document.querySelector(
-                  ".modal-overlay.open"
-                )
-              ) {
-                document.body.classList.remove(
-                  "modal-open"
-                );
-              }
-            }
-          }
-        );
-      });
-
-
-    document.addEventListener(
-      "keydown",
-      (event) => {
-
-        if (
-          event.key === "Escape"
-        ) {
-
-          document
-            .querySelectorAll(
-              ".modal-overlay.open"
-            )
-            .forEach((modal) => {
-              modal.classList.remove(
-                "open"
-              );
-            });
-
-          document.body.classList.remove(
-            "modal-open"
-          );
-        }
-      }
-    );
-  }
-
-
-  /* =======================================================
-     PI BUTTON EVENTS
-     ======================================================= */
-
-  function initPiButtons() {
-
-    const connectButtons = [
-      $("piConnectBtn"),
-      $("heroConnectBtn"),
-      $("piPanelConnectBtn"),
-      $("modalConnectBtn")
-    ].filter(Boolean);
-
-    connectButtons.forEach(
-      (button) => {
-
-        button.addEventListener(
-          "click",
-          async () => {
-
-            if (piUser) {
-
-              notify(
-                "@" +
-                (piUser.username || "Pi")
-              );
-
-              return;
-            }
-
-            await connectWithPi();
-          }
-        );
-      }
-    );
-
-
-    const payButton =
-      $("modalPayBtn");
-
-    if (payButton) {
-
-      payButton.addEventListener(
-        "click",
-        async () => {
-
-          if (!currentPayment) {
-
-            notify(
-              "Aucun paiement sélectionné.",
-              "error"
-            );
-
-            return;
-          }
-
-          const payment =
-            currentPayment;
-
-          payButton.disabled =
-            true;
-
-          try {
-
-            closeModal(
-              "paymentModal"
-            );
-
-            await payWithPi(
-              payment.amount,
-              payment.memo,
-              payment.metadata
-            );
-
-          } finally {
-
-            payButton.disabled =
-              false;
-          }
-        }
-      );
-    }
-  }
-
-
-  /* =======================================================
-     LANGUAGE
-     ======================================================= */
-
-  function initLanguage() {
-
-    const select =
-      $("langSelect");
-
-    const saved =
-      localStorage.getItem(
-        "worldarts_lang"
-      ) || "fr";
-
-    applyLanguage(
-      translations[saved]
-        ? saved
-        : "fr"
-    );
-
-    if (!select) return;
-
-    select.addEventListener(
-      "change",
-      (event) => {
-
-        applyLanguage(
-          event.target.value
-        );
-
-        updatePiButtons();
-        updatePiStatus(
-          Boolean(piUser)
-        );
-
-        loadArtworks();
-      }
-    );
-  }
-
-
-  /* =======================================================
-     THEME
-     ======================================================= */
-
-  function initTheme() {
-
-    const saved =
-      localStorage.getItem(
-        "worldarts_theme"
-      );
-
-    if (
-      saved === "dark" ||
-      saved === "light"
-    ) {
-
-      applyTheme(saved);
-
-    } else {
-
-      const prefersDark =
-        window.matchMedia &&
-        window.matchMedia(
-          "(prefers-color-scheme: dark)"
-        ).matches;
-
-      applyTheme(
-        prefersDark
-          ? "dark"
-          : "light"
-      );
-    }
-
-    const toggle =
-      $("themeToggle");
-
-    if (!toggle) return;
-
-    toggle.addEventListener(
-      "click",
-      () => {
-
-        const current =
-          document.body.getAttribute(
-            "data-theme"
-          );
-
-        applyTheme(
-          current === "dark"
-            ? "light"
-            : "dark"
-        );
-      }
-    );
-  }
-
-
-  /* =======================================================
-     CONTACT INITIALISATION
-     ======================================================= */
-
-  function initContact() {
-
-    const form =
-      $("contactForm");
-
-    if (!form) return;
-
-    form.addEventListener(
-      "submit",
-      (event) => {
-
-        event.preventDefault();
-
-        submitContactForm(
-          form
-        );
-      }
-    );
-  }
-
-
-  /* =======================================================
-     REVEAL ANIMATION
-     ======================================================= */
-
-  function initRevealObserver() {
-
-    const elements =
-      document.querySelectorAll(
-        ".reveal"
-      );
-
-    if (
-      !elements.length ||
-      !("IntersectionObserver" in window)
-    ) {
-      elements.forEach(
-        (element) =>
-          element.classList.add("in")
-      );
-
-      return;
-    }
-
-    const observer =
-      new IntersectionObserver(
-        (entries) => {
-
-          entries.forEach(
-            (entry) => {
-
-              if (
-                !entry.isIntersecting
-              ) {
-                return;
-              }
-
-              entry.target.classList.add(
-                "in"
-              );
-
-              observer.unobserve(
-                entry.target
-              );
-            }
-          );
-        },
-        {
-          threshold: 0.12
-        }
-      );
-
-    elements.forEach(
-      (element) =>
-        observer.observe(element)
-    );
-  }
-
-
-  /* =======================================================
-     INITIALISATION
-     ======================================================= */
-
-  async function init() {
-
-    console.log(
-      "WorldArts: initialisation..."
-    );
-
-    initTheme();
-
-    initLanguage();
-
-    initMobileMenu();
-
-    initNavigationObserver();
-
-    initModals();
-
-    initPiButtons();
-
-    initContact();
-
-    initRevealObserver();
-
-    initPiSdk();
-
-    updatePiStatus(
-      false
-    );
-
-    updatePiButtons();
-
-    await loadArtworks();
-
-    console.log(
-      "WorldArts: application initialisée."
-    );
-  }
-
-
-  /* =======================================================
-     API PUBLIQUE
-     ======================================================= */
-
-  window.WorldArts = {
-
-    connectWithPi,
-
-    payWithPi,
-
-    applyLanguage,
-
-    applyTheme,
-
-    loadArtworks,
-
-    openModal,
-
-    closeModal,
-
-    getCurrentUser: () =>
-      piUser,
-
-    getCurrentPayment: () =>
-      currentPayment
+  });
+}
+
+/* ---------------------------------------------------------
+   10. BOUTONS PRINCIPAUX
+   --------------------------------------------------------- */
+
+function initButtons() {
+  const openLogin = () => {
+    if (piUser) return; // déjà connecté
+    openModal("loginModal");
   };
 
+  const piConnectBtn = document.getElementById("piConnectBtn");
+  const heroConnectBtn = document.getElementById("heroConnectBtn");
+  const modalConnectBtn = document.getElementById("modalConnectBtn");
 
-  /* =======================================================
-     START
-     ======================================================= */
+  if (piConnectBtn) piConnectBtn.addEventListener("click", openLogin);
+  if (heroConnectBtn) heroConnectBtn.addEventListener("click", openLogin);
+  if (modalConnectBtn) modalConnectBtn.addEventListener("click", connectWithPi);
 
-  if (
-    document.readyState ===
-    "loading"
-  ) {
+  const payBtn = document.getElementById("payBtn");
+  const modalPayBtn = document.getElementById("modalPayBtn");
 
-    document.addEventListener(
-      "DOMContentLoaded",
-      init
-    );
-
-  } else {
-
-    init();
+  if (payBtn) {
+    payBtn.addEventListener("click", () => {
+      if (!piUser) {
+        openModal("loginModal");
+        return;
+      }
+      openModal("paymentModal");
+    });
   }
 
-})();
+  if (modalPayBtn) {
+    modalPayBtn.addEventListener("click", () => {
+      payWithPi({
+        amount: 1,
+        memo: "Aube sur le lac Tanganyika — WorldArts",
+        artworkId: "demo-artwork-01"
+      });
+    });
+  }
+}
+
+/* ---------------------------------------------------------
+   11. PI SDK — INITIALISATION
+   --------------------------------------------------------- */
+
+function initPiSdk() {
+  if (typeof Pi === "undefined") {
+    console.warn("Pi SDK non détecté. Ouvre WorldArts dans le Pi Browser pour l'utiliser pleinement.");
+    return;
+  }
+  Pi.init({ version: "2.0", sandbox: PI_SANDBOX });
+}
+
+/* ---------------------------------------------------------
+   12. CONNEXION PI (LOGIN)
+   --------------------------------------------------------- */
+
+async function connectWithPi() {
+  if (typeof Pi === "undefined") {
+    alert("Ouvrez WorldArts dans le Pi Browser.");
+    return;
+  }
+
+  try {
+    const scopes = ["username", "payments"];
+    const auth = await Pi.authenticate(scopes, onIncompletePaymentFound);
+
+    if (!auth || !auth.user || !auth.accessToken) {
+      throw new Error("Pi authentication data incomplete.");
+    }
+
+    console.log("Pi authentication successful:", auth.user);
+
+    const response = await fetch(API_URL + "/api/auth/pi-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accessToken: auth.accessToken })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "WorldArts authentication failed.");
+    }
+
+    piUser = data.user;
+
+    localStorage.setItem("worldarts_token", data.token);
+    localStorage.setItem("worldarts_user", JSON.stringify(data.user));
+
+    const button = document.getElementById("piConnectBtn");
+    if (button) button.textContent = "@" + piUser.username;
+
+    closeModal("loginModal");
+
+    alert("Bienvenue @" + piUser.username + " sur WorldArts !");
+
+    console.log("WorldArts authentication successful:", data.user);
+  } catch (error) {
+    console.error("Pi authentication error:", error);
+    alert("Connexion Pi impossible : " + (error.message || "Erreur inconnue."));
+  }
+}
+
+/* ---------------------------------------------------------
+   13. PAIEMENT PI
+   --------------------------------------------------------- */
+
+async function payWithPi({ amount, memo, artworkId }) {
+  if (typeof Pi === "undefined") {
+    alert("Ouvrez WorldArts dans le Pi Browser pour effectuer un paiement.");
+    return;
+  }
+
+  if (!piUser) {
+    alert("Connectez-vous d'abord avec Pi.");
+    openModal("loginModal");
+    return;
+  }
+
+  const token = localStorage.getItem("worldarts_token");
+
+  try {
+    await Pi.createPayment(
+      {
+        amount: amount,
+        memo: memo,
+        metadata: { artworkId: artworkId }
+      },
+      {
+        onReadyForServerApproval: async (paymentId) => {
+          await fetch(API_URL + "/api/payments/approve", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + token
+            },
+            body: JSON.stringify({ paymentId })
+          });
+        },
+
+        onReadyForServerCompletion: async (paymentId, txid) => {
+          await fetch(API_URL + "/api/payments/complete", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + token
+            },
+            body: JSON.stringify({ paymentId, txid })
+          });
+
+          closeModal("paymentModal");
+          alert("Paiement effectué avec succès. Merci pour votre achat !");
+        },
+
+        onCancel: (paymentId) => {
+          console.log("Paiement annulé :", paymentId);
+          closeModal("paymentModal");
+        },
+
+        onError: (error, payment) => {
+          console.error("Erreur de paiement Pi :", error, payment);
+          alert("Une erreur est survenue pendant le paiement.");
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Payment initiation error:", error);
+    alert("Impossible de lancer le paiement : " + (error.message || "Erreur inconnue."));
+  }
+}
+
+/* ---------------------------------------------------------
+   14. PAIEMENT INCOMPLET (EXIGÉ PAR LE PI SDK)
+   --------------------------------------------------------- */
+
+function onIncompletePaymentFound(payment) {
+  console.log("Paiement incomplet détecté :", payment);
+
+  const token = localStorage.getItem("worldarts_token");
+
+  fetch(API_URL + "/api/payments/complete", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + token
+    },
+    body: JSON.stringify({
+      paymentId: payment.identifier,
+      txid: payment.transaction ? payment.transaction.txid : null
+    })
+  }).catch((err) => {
+    console.error("Erreur lors de la finalisation du paiement incomplet :", err);
+  });
+}
+
+/* ---------------------------------------------------------
+   15. RESTAURATION DE SESSION
+   --------------------------------------------------------- */
+
+function restoreSession() {
+  const savedUser = localStorage.getItem("worldarts_user");
+  const savedToken = localStorage.getItem("worldarts_token");
+
+  if (savedUser && savedToken) {
+    try {
+      piUser = JSON.parse(savedUser);
+      const button = document.getElementById("piConnectBtn");
+      if (button && piUser && piUser.username) {
+        button.textContent = "@" + piUser.username;
+      }
+    } catch (e) {
+      console.warn("Impossible de restaurer la session WorldArts.", e);
+    }
+  }
+}
+
+/* ---------------------------------------------------------
+   16. FORMULAIRE DE CONTACT
+   --------------------------------------------------------- */
+
+function initContactForm() {
+  const form = document.getElementById("contactForm");
+  const status = document.getElementById("contactStatus");
+
+  if (!form) return;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData(form);
+    const payload = {
+      name: formData.get("name"),
+      email: formData.get("email"),
+      message: formData.get("message")
+    };
+
+    const submitBtn = form.querySelector("button[type='submit']");
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+      const response = await fetch(API_URL + "/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) throw new Error("Envoi impossible.");
+
+      form.reset();
+      if (status) status.style.display = "block";
+    } catch (error) {
+      console.error("Contact form error:", error);
+      if (status) {
+        status.style.display = "block";
+        status.textContent = "Erreur : votre message n'a pas pu être envoyé. Réessayez plus tard.";
+      }
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+Mpp  });
+}
+0
